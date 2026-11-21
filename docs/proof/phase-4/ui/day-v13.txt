@@ -1,0 +1,3 @@
+Edge 158, 1280x720, seed 42, shortened v1.3 Day fixture.
+Menu, DayIntro, Gather (dock), EveningIntro, Quan (serve), DayResult, Shop (close), Summary.
+{"money": 72, "earned": 72, "score": 372, "reputation": 3.2, "top_dishes": ["ca_loc_nuong_trui"]}

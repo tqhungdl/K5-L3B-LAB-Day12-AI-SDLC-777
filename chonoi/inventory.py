@@ -71,7 +71,7 @@ def validate_items(items, kinds=KINDS):
     return out
 
 
-def validate_item_list(rows, kinds=KINDS):
+def validate_item_list(rows, kinds=KINDS, *, allow_exact=False):
     if not isinstance(rows, list):
         raise BadInput("items phải là mảng cá thể")
     seen = set()
@@ -83,7 +83,8 @@ def validate_item_list(rows, kinds=KINDS):
             raise BadInput(f"id cá thể rỗng, sai kiểu hoặc trùng: {ident!r}")
         if not isinstance(kind, str) or kind not in kinds:
             raise BadInput(f"nguyên liệu lạ: {kind!r}")
-        if type(fresh) not in (int, float) or not 0 <= fresh <= 100:
+        numeric = type(fresh) in (int, float) or (allow_exact and isinstance(fresh, Fraction))
+        if not numeric or not 0 <= fresh <= 100:
             raise BadInput(f"fresh phải là số hữu hạn trong [0, 100]: {fresh!r}")
         seen.add(ident)
     return [row.copy() for row in rows]

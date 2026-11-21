@@ -77,12 +77,12 @@ def _fresh_json_value(frac: Fraction):
 
 def _attach_exact(row: dict) -> dict:
     frac = exact_fresh(row)
-    return {"id": row["id"], "kind": row["kind"], "fresh": _fresh_json_value(frac), "_fresh": frac}
+    return {"id": row["id"], "kind": row["kind"], "fresh": frac, "_fresh": frac}
 
 
 def validate_item_list(rows, kinds=KINDS) -> list[dict]:
     if _inv_validate_item_list is not None:
-        validated = _inv_validate_item_list(rows, kinds=kinds)
+        validated = _inv_validate_item_list(rows, kinds=kinds, allow_exact=True)
         return [_attach_exact(r) for r in validated]
     if not isinstance(rows, list):
         raise BadInput("items phải là mảng cá thể [{id,kind,fresh}] ở v1.2")

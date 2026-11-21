@@ -35,7 +35,9 @@ Mở trình duyệt tại địa chỉ được in trong terminal (mặc định
   - `python3 -m chonoi.headless --mode gather --seed 42 --ticks 600 --out gather.jsonl`
   - `python3 -m chonoi.headless --mode quan --seed 42 --ticks 600 --inventory catch.json --out quan.jsonl`
 - **Đo hiệu năng render (Benchmark)**:
+  - Cài riêng cho benchmark: `python3 -m pip install playwright` và `python3 -m playwright install chromium`.
   - `python3 -m chonoi.bench --seed 42 --duration 30 --out bench.json`
+  - Có thể đặt biến môi trường `CHONOI_BENCH_CHANNEL=msedge` hoặc `chrome` để dùng trình duyệt tương ứng đã cài.
 - **Kiểm tra độ bền 10 ngày (Soak Headless)**:
   - `python3 -m chonoi.soak --seed 7 --days 10 --out soak.json`
 - **Bộ kiểm thử tự động (Test Suite)**:
