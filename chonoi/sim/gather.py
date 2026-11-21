@@ -1,20 +1,11 @@
-"""Buổi sáng — Lặn & Hái (`gather`). KHUNG: bơi, chặn mép, đồng hồ, cập bến, xuất kho.
-
-Mặt cắt dòng sông nhìn NGANG: vị trí `[x, d]` (x sang phải, `d` độ sâu hướng xuống, d = 0 là mặt nước).
-`move = [x, d]`: thành phần thứ hai DƯƠNG = bơi xuống. Hướng mặt là góc từ +x, dương = xuống.
-
-Đã làm sẵn để smoke test chạy được: bơi + tăng/giảm tốc, chặn mép (d không âm), đồng hồ và hết giờ,
-cập bến (`interact` trong vùng bến -> `gather_end` reason `docked`), xuất kho, snapshot đầy đủ trường gather.
-
-Xử lý oxy và ngạt sau khi bơi, trước khi tương tác (Test Contract mục F).
-Hái rau trên mặt nước, bắt cá dưới nước và ưu tiên cập bến khi tương tác.
-Các tính năng của phase sau chưa nằm trong khung này.
-"""
+"""Buổi sáng — Lặn & Hái. Tọa độ [x, d] có độ sâu d tăng khi lặn xuống."""
 
 import math
 
 from ..ids import sort_by_id
 from ..inventory import hold_to_items
+from ..scenario import validate_gather_player_limits
+from .gather_monsters import advance_monsters, init_monsters
 from .gather_resources import catch_fish, harvest, tick_resources
 from .ramp import ramp_velocity
 
@@ -25,7 +16,7 @@ class GatherSim:
     mode = "gather"
     phase = "gather"
 
-    def __init__(self, tuning, scenario, streams, ids):
+    def __init__(self, tuning, scenario, streams, ids, *, day_number=1, active_upgrades=None):
         t = tuning["gather"]
         self.t = t
         self.tick_hz = tuning["tick_hz"]
@@ -37,35 +28,52 @@ class GatherSim:
         self._tgt = None
         self._ramp_left = 0
         self.heading = float(p.get("heading_deg", t["start_heading_deg"]))
-        self.oxygen_max = int(round(t["oxygen_max_s"] * self.tick_hz))
+        upgrades = tuning.get("shop", {}).get("upgrades", {})
+        active_upgrades = active_upgrades or {}
+        oxygen_s = _upgrade_value(upgrades, active_upgrades, "oxygen", "oxygen_max_s", t["oxygen_max_s"])
+        self.oxygen_max = round(oxygen_s * self.tick_hz)
+        self.hp_max = _upgrade_value(upgrades, active_upgrades, "hp", "hp_max", t["hp_max"])
+        validate_gather_player_limits(p, self.oxygen_max, self.hp_max)
         self.oxygen_ticks = p.get("oxygen_ticks", self.oxygen_max)
-        self.hp = p.get("hp", t["hp_max"])
+        self.hp = p.get("hp", self.hp_max)
         self.zero_oxy_ticks = p.get("zero_oxy_ticks", 0)
         self.invuln_ticks = p.get("invuln_ticks", 0)
         self.catch_cd_ticks = p.get("catch_cd_ticks", 0)
         self.hold = list(scenario.get("hold", []))  # thứ tự nhặt, cuối mảng là mới nhất
         self.time_left_ticks = scenario.get("time_left_ticks", int(round(t["duration_s"] * self.tick_hz)))
-        # nút và đàn cá: scenario THAY THẾ danh sách mặc định; random_fish=false tắt cá mặc định
-        src_nodes = scenario["nodes"] if "nodes" in scenario else t["nodes"]
+        self.phase_tick = 0
+        src_nodes = scenario.get("nodes", t["nodes"])
         self.nodes = [{"id": n["id"], "kind": n["kind"], "pos": [float(c) for c in n["pos"]],
                        "regrow_ticks": n.get("regrow_ticks", 0)} for n in src_nodes]
-        if "fish" in scenario:
-            src_fish = scenario["fish"]
-        elif scenario.get("random_fish", True):
-            src_fish = t["fish_initial"]
-        else:
-            src_fish = []
-        # Đàn cá đứng yên ở phase này. Cá bơi / sinh thêm là việc của phase sau.
-        self.fish = [{"id": f["id"], "kind": f["kind"], "pos": [float(c) for c in f["pos"]],
-                      "heading_deg": f.get("heading_deg", 0)} for f in src_fish]
-        for coll in (self.nodes, self.fish):
-            for e in coll:
-                ids.reserve(e["id"])
+        for node in self.nodes:
+            ids.reserve(node["id"])
+        self.monsters = init_monsters(self, scenario, day_number)
+        self.random_fish = scenario.get("random_fish", True)
+        self._advance_fish = None
+        self.fish = self._init_fish(scenario)
         self.money = 0
         self.earned = 0
         self.reputation = tuning["quan"]["reputation_initial"]
         self.done = False
         self.reason = None
+
+    def _init_fish(self, scenario):
+        initial = self.t["fish_initial"]
+        if isinstance(initial, list):
+            # Manifest v1.0 liệt kê đàn cá cố định. V1.1 dựng đàn qua module của lát 1.
+            fish = scenario.get("fish", initial if self.random_fish else [])
+            for school in fish:
+                self.ids.reserve(school["id"])
+            return [
+                dict(school, pos=list(school["pos"]), heading_deg=school.get("heading_deg", 0),
+                     age_ticks=school.get("age_ticks", 0))
+                for school in fish
+            ]
+
+        from .gather_resources import advance_fish, init_fish
+
+        self._advance_fish = advance_fish
+        return init_fish(self, scenario)
 
     # --- giao diện cho runner -------------------------------------------------
     def inventory_items(self) -> dict:
@@ -75,7 +83,7 @@ class GatherSim:
         return {
             "player": {"pos": self.pos, "vel": self.vel, "heading_deg": self.heading,
                        "oxygen_ticks": self.oxygen_ticks, "oxygen_max_ticks": self.oxygen_max,
-                       "hp": self.hp, "hp_max": self.t["hp_max"], "zero_oxy_ticks": self.zero_oxy_ticks,
+                       "hp": self.hp, "hp_max": self.hp_max, "zero_oxy_ticks": self.zero_oxy_ticks,
                        "invuln_ticks": self.invuln_ticks, "catch_cd_ticks": self.catch_cd_ticks,
                        "at_surface": self._at_surface()},
             "hold": self.hold, "hold_count": len(self.hold),
@@ -83,13 +91,16 @@ class GatherSim:
             "nodes": [{"id": n["id"], "pos": n["pos"], "kind": n["kind"],
                        "ready": n["regrow_ticks"] == 0, "regrow_ticks": n["regrow_ticks"]}
                       for n in sort_by_id(self.nodes)],
-            "fish": [{"id": f["id"], "pos": f["pos"], "kind": f["kind"], "heading_deg": f["heading_deg"]}
+            "fish": [{"id": f["id"], "pos": f["pos"], "kind": f["kind"], "heading_deg": f["heading_deg"],
+                      "age_ticks": f.get("age_ticks", 0)}
                      for f in sort_by_id(self.fish)],
+            "monsters": [dict(monster) for monster in sort_by_id(self.monsters)],
         }
 
     # --- một bước ---------------------------------------------------------------
     def step(self, inp):
         events = []
+        self.phase_tick += 1
         # 1. đồng hồ và hàng có sẵn: giảm bộ đếm, nút mọc lại
         self.time_left_ticks = max(0, self.time_left_ticks - 1)
         self.invuln_ticks = max(0, self.invuln_ticks - 1)
@@ -103,6 +114,10 @@ class GatherSim:
         self._tick_oxygen(at_surface, events)
         if self.done:
             return events
+        advance_monsters(self, events)
+        if self.hp == 0:
+            self._faint("monster", events)
+            return events
         # 3. interact: bến trước, rồi hái
         if inp.pressed("interact"):
             if self._in_dock():
@@ -115,6 +130,8 @@ class GatherSim:
         # 5. hết giờ
         if self.time_left_ticks <= 0:
             self._finish("time", events)
+        elif self._advance_fish is not None and self.random_fish:
+            self._advance_fish(self, self.phase_tick, events)
         return events
 
     # --- tiện ích ---------------------------------------------------------------
@@ -139,6 +156,7 @@ class GatherSim:
             return
 
         if self.oxygen_ticks > 0:
+            self.zero_oxy_ticks = 0
             self.oxygen_ticks -= 1
             if self.oxygen_ticks > 0:
                 return
@@ -152,10 +170,13 @@ class GatherSim:
         self.hp -= 1
         events.append(("choke", {"hp": self.hp}))
         if self.hp == 0:
-            lost = list(reversed(self.hold))
-            self.hold.clear()
-            events.append(("faint", {"cause": "choke", "lost": lost, "hp": self.hp}))
-            self._finish("fainted", events)
+            self._faint("choke", events)
+
+    def _faint(self, cause, events):
+        lost = list(reversed(self.hold))
+        self.hold.clear()
+        events.append(("faint", {"cause": cause, "lost": lost, "hp": self.hp}))
+        self._finish("fainted", events)
 
     def _finish(self, reason, events):
         self.done = True
@@ -178,3 +199,8 @@ class GatherSim:
             elif self.pos[i] >= hi:
                 self.pos[i] = hi
                 self.vel[i] = min(0.0, self.vel[i])
+
+
+def _upgrade_value(upgrades, active, kind, field, base):
+    level = active.get(kind, 0)
+    return next((row[field] for row in upgrades.get(kind, ()) if row["level"] == level), base)

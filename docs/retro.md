@@ -7,9 +7,9 @@
 - Khi tích hợp, chạy lại một lượt có nguyên liệu thực sự được hái hoặc bắt và một lượt Quán từ nấu đến thu tiền. Gắn kết quả với SHA bàn giao.
 
 ## Phase 2 (nhanh)
-- Điều tốt:
-- Điều tệ:
-- 1 hành động cho Phase 3:
+- Fixture tắt cá động giúp lát 2 kiểm được Cá Sấu và thứ tự ngạt, hit, ngất trước khi nối các lát.
+- Manifest hiện còn v1.0. Kiểm chuyển sang Quán trên hai sim đã chạy, còn smoke `--mode day` và kho có nguyên liệu mới cần chạy lại sau khi tích hợp.
+- Phase 3, Scrum/Release chuẩn bị fixture bàn giao có vật phẩm mới ngay lúc kickoff. Integrator chạy qua CLI và lưu kết quả theo SHA ở mốc standup.
 
 ## Phase 4 (cuối)
 - Rà lại hành động Phase 2: đã làm chưa? vì sao?
