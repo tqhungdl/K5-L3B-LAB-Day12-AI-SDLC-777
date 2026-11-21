@@ -1,5 +1,21 @@
 # Changelog
 
+## [Phase 4] - 2026-11-21
+### Added & Changed
+- **Test Contract v1.3**:
+  - Kích hoạt `contract_version: "1.3"` và `tuning.freshness` trong `game.contract.json`.
+  - Khai báo chuẩn hóa các lệnh ở gốc manifest: `run_cmd`, `bench_cmd`, `soak_cmd`.
+  - Đồng bộ hệ thống schema kho cá thể kế thừa từ v1.2, từ chối file kho đếm với mã lỗi 2.
+- **Hiệu năng & Độ bền**:
+  - Tích hợp công cụ Benchmark render (`python3 -m chonoi.bench --seed 42 --duration 30 --out bench.json`).
+  - Hỗ trợ công cụ Soak Headless 10 ngày trong một tiến trình duy nhất (`python3 -m chonoi.soak --seed 7 --days 10 --out soak.json`).
+- **Giao diện & Tiếp cận (Accessible UI)**:
+  - Bổ sung chỉ báo cảnh báo trực quan: thủy quái đến gần, oxy dưới 25%, khách chờ sắp mất kiên nhẫn.
+  - Hỗ trợ chế độ tương phản cao (High Contrast mode) bật/tắt bằng phím.
+- **Đóng gói & Phát hành**:
+  - Hoàn thiện tài liệu khởi chạy từ bản sao sạch trong tối đa 3 lệnh.
+  - Đóng gói bản phát hành `v1.0.0` và gắn tag `phase-4`.
+
 ## [Phase 3] - 2026-11-21
 ### Breaking Changes
 - **Kho cá thể (Test Contract v1.2)**: Chuyển cấu trúc kho từ map đếm sang mảng cá thể `{"items": [{"id": ..., "kind": ..., "fresh": ...}]}`. Ở Contract v1.2, nạp file kho dạng đếm cũ hoặc sai schema sẽ thoát với mã lỗi 2.

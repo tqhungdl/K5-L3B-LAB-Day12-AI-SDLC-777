@@ -27,3 +27,17 @@
   + Khi sửa runner, vòng lặp thiếu ghi snapshot cuối (`last_snapped != sess.tick`), khiến test đóng ca kiểm snapshot bị thiếu; phát hiện qua unittest và đã khôi phục đúng quy ước Contract B.
 - Điều tôi học được:
   + Quản lý state chuyển đổi mô hình dữ liệu (từ count map sang object list) cần đặc biệt chú ý tính toàn vẹn của snapshot và chu kỳ sống của ID cá thể.
+
+## Phase 4
+- Tôi đã làm:
+  + Nâng cấp manifest `game.contract.json` lên Test Contract v1.3 (`run_cmd`, `bench_cmd`, `soak_cmd`, `tuning.freshness`).
+  - Đồng bộ schema kho cá thể cho v1.3 trong `contract.py`, `inventory.py`, `scenario.py`.
+  - Viết bộ test `tests/test_p4_contract.py` (6 unit tests), kiểm tra tương thích ngược và từ chối kho đếm mã lỗi 2.
+  - Cập nhật hồ sơ dự án: `TEAM.md`, `README.md` (hướng dẫn chạy clone sạch ≤ 3 lệnh), `CHANGELOG.md`, `CREDITS.md`.
+  - Đóng gói và kiểm chứng giải nén package chạy thử nghiệm, lưu bằng chứng vào `docs/proof/phase-4/release/`.
+- Tôi đã review:
+  + Phối hợp với Người 3 thống nhất tên lệnh soak và schema v1.3; kiểm tra regression 120 tests toàn bộ đều pass.
+- AI sai ở đâu & phát hiện thế nào:
+  + AI ban đầu sửa schema chỉ tập trung vào v1.3 mà bỏ quên các điểm so sánh cứng `== "1.2"` ở `scenario.py` và `test_p2_fish_data.py`, khiến kho cá thể bị từ chối; phát hiện qua test suite và đã chuẩn hóa sang `in ("1.2", "1.3")`.
+- Điều tôi học được:
+  + Quy trình phát hành phần mềm cần kiểm thử tương thích ngược đa phiên bản (v1.1, v1.2, v1.3) và xác minh từ bản clone sạch trước khi gắn tag chính thức.
