@@ -4,8 +4,10 @@
 
 ## Lệnh
 - Test: `PYTHONPATH=tests:. python3 -m unittest discover -s tests -v`
-- Headless: `python3 -m chonoi.headless --mode gather|quan --seed 1 --ticks 600 --out out.jsonl`
-- Chơi thử trên trình duyệt: `python3 -m chonoi.live --mode gather|quan` (mở địa chỉ in ra; WASD, E, Space, R)
+- Headless: `python3 -m chonoi.headless --mode gather|quan|day --seed 1 --ticks 600 --out out.jsonl`
+- Live (Chơi trực tiếp): `python3 -m chonoi.live --mode day --days 5` (WASD, E, Space, P, R)
+- Benchmark render (Phase 4): `python3 -m chonoi.bench --seed 42 --duration 30 --out bench.json`
+- Soak 10 Ngày (Phase 4): `python3 -m chonoi.soak --seed 7 --days 10 --out soak.json`
 
 ## Cấu trúc & quy ước
 - (Starter Python là TÙY CHỌN; nhóm có thể dùng ngôn ngữ khác nếu giữ Test Contract.) Khung do giảng viên cấp: `chonoi/{headless,inputs,scenario,contract,rng,ids,jsonl,inventory,runner,live}.py` và `chonoi/web/`. Hạn chế sửa; nếu phải sửa thì báo cả nhóm và ghi lại lý do.

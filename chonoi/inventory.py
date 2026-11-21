@@ -114,7 +114,7 @@ def read_inventory(path: str, kinds=KINDS, *, contract_version="1.1"):
         raise BadInput(f"không đọc được file kho {path}: {e}")
     if not isinstance(data, dict) or set(data.keys()) != {"items"}:
         raise BadInput("file kho chỉ được có khóa gốc 'items'")
-    if contract_version == "1.2":
+    if contract_version in ("1.2", "1.3"):
         return sort_by_id(validate_item_list(data["items"], kinds))
     return validate_items(data["items"], kinds)
 
@@ -128,7 +128,7 @@ def hold_to_items(hold: list) -> dict:
 
 
 def write_inventory(path: str, items, *, contract_version="1.1"):
-    if contract_version == "1.2":
+    if contract_version in ("1.2", "1.3"):
         items = sort_by_id(validate_item_list(items))
     else:
         items = {k: items[k] for k in sorted(items) if items[k] > 0}

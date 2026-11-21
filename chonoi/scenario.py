@@ -52,7 +52,7 @@ def load_scenario(path, mode: str, tuning: dict, *, contract_version="1.1") -> d
     if not isinstance(data, dict) or set(data) - set(modes):
         raise BadInput(f"khối sai mode: --mode {mode} chỉ nhận {', '.join(modes)}")
     blocks = {name: data.get(name, {}) for name in modes}
-    individual_items = contract_version == "1.2"
+    individual_items = contract_version in ("1.2", "1.3")
     if mode == "day":
         _validate_day(blocks["day"], tuning)
         _validate_shift("gather", blocks["gather"], tuning, in_day=True, individual_items=individual_items)

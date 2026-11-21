@@ -13,39 +13,61 @@ Cách làm việc kỹ thuật là **tự do** (push thẳng, nhánh + PR, pair,
 4. **Gắn tag** `phase-1` … `phase-4` đúng hạn; chạy được tại từng tag.
 5. **Ghi chép tối thiểu:** `docs/verification/phase-n.md`, `docs/clarify.md`, `docs/ai-usage-log.md`, `docs/retro.md`, `docs/members/<handle>.md`.
 
-## Bắt đầu nhanh
+## Bắt đầu nhanh (Khởi chạy từ clone sạch ≤ 3 lệnh)
 
-Cần Python 3 trên macOS hoặc Linux. Mở địa chỉ được in trong terminal để chơi.
+Yêu cầu môi trường: **Python 3.10+** (macOS, Linux hoặc Windows). Trò chơi chỉ sử dụng thư viện chuẩn của Python, không yêu cầu cài thêm thư viện ngoài để chơi và kiểm thử lõi.
 
+Khởi chạy trong tối đa 3 lệnh:
 ```bash
-git clone '<URL fork của nhóm>' cho-noi && cd cho-noi
-PYTHONPATH=tests:. python3 -m unittest discover -s tests -v
-python3 -m chonoi.live --mode gather --inventory-out catch.json
+git clone 'https://github.com/tqhungdl/K5-L3B-LAB-Day12-AI-SDLC-777.git' cho-noi && cd cho-noi
+python3 -m unittest discover -s tests -v
+python3 -m chonoi.live --mode day --days 5
 ```
+Mở trình duyệt tại địa chỉ được in trong terminal (mặc định `http://127.0.0.1:8000`) để trải nghiệm toàn bộ chu trình 5 Ngày (Lặn & Hái $\rightarrow$ Mở Quán $\rightarrow$ Cửa hàng Má Tư).
 
-Để chơi **Mở Quán** độc lập, chạy lệnh dưới đây ở thư mục repo. Có thể chạy song song với Gather vì hai ca dùng cổng khác nhau. Thay đường dẫn kho mẫu bằng `catch.json` để dùng nguyên liệu của chính ca Gather vừa kết thúc.
+### Các lệnh CLI chính (Test Contract v1.3)
+- **Chơi trực tiếp (Live)**:
+  - Vòng ngày chuẩn (5 ngày): `python3 -m chonoi.live --mode day --days 5`
+  - Ca Lặn & Hái độc lập: `python3 -m chonoi.live --mode gather --inventory-out catch.json`
+  - Ca Mở Quán độc lập: `python3 -m chonoi.live --mode quan --inventory catch.json`
+- **Mô phỏng không giao diện (Headless)**:
+  - `python3 -m chonoi.headless --mode day --days 5 --seed 42 --ticks 1800 --out day.jsonl`
+  - `python3 -m chonoi.headless --mode gather --seed 42 --ticks 600 --out gather.jsonl`
+  - `python3 -m chonoi.headless --mode quan --seed 42 --ticks 600 --inventory catch.json --out quan.jsonl`
+- **Đo hiệu năng render (Benchmark)**:
+  - `python3 -m chonoi.bench --seed 42 --duration 30 --out bench.json`
+- **Kiểm tra độ bền 10 ngày (Soak Headless)**:
+  - `python3 -m chonoi.soak --seed 7 --days 10 --out soak.json`
+- **Bộ kiểm thử tự động (Test Suite)**:
+  - `python3 -m unittest discover -s tests -v`
 
-```bash
-python3 -m chonoi.live --mode quan --port 8001 --inventory docs/contracts/inventory.sample.json
-```
+### Điều khiển
+- **Di chuyển**: `W`, `A`, `S`, `D` hoặc phím mũi tên (bơi khi lặn, đi lại trong quán).
+- **Tương tác**: `E` để hái rau, cập bến, bắt đầu nấu tại bếp hoặc bưng món phục vụ khách tại bàn.
+- **Bắt cá**: `Space` khi lặn để phóng vợt bắt cá trong tầm.
+- **Tạm dừng**: `P` để đóng băng bộ đếm mô phỏng.
+- **Chơi lại**: `R` để reset lại ca chơi.
+- **Chế độ tương phản cao**: Nút bật/tắt trên giao diện HUD hoặc bấm phím để tăng độ tương phản hiển thị.
 
-**Điều khiển** — WASD hoặc phím mũi tên để bơi hoặc đi. `E` để hái, cập bến hoặc tương tác với bếp/bàn. `Space` để bắt cá khi lặn. `R` để chơi lại.
+## Bàn giao kho cá thể & Độ tươi (Test Contract v1.2 & v1.3)
 
-**Điểm Phase 1** — Tổng tiền kiếm được (nghìn đồng) cộng `100 × floor(uy tín)`. Uy tín được làm tròn xuống trước khi nhân.
-
-Game cần chế độ **headless** theo Test Contract (`python3 -m chonoi.headless --mode gather|quan …`) để được chạy và chấm tự động. **Công nghệ không ràng buộc**: khung Python trong `chonoi/` chỉ là gợi ý, chi tiết ở [`docs/STARTER.md`](docs/STARTER.md).
-
-## Bàn giao kho Phase 1
-
-File kho có duy nhất khóa `items`, ánh xạ bốn ID nguyên liệu hợp lệ (`ca_loc`, `ca_linh`, `bong_sung`, `bong_dien_dien`) tới số nguyên không âm. Khóa vắng tính là 0 và bên ghi bỏ các mục bằng 0. Kho rỗng là `{"items":{}}`. Schema và thời điểm ghi theo [PRD-0 mục G](PHASE1.md#g-file-kho-hợp-đồng-tích-hợp-lặn--hái--mở-quán).
-
+File kho lưu trữ danh sách cá thể `{id, kind, fresh}`:
 ```json
-{"items":{"bong_sung":2,"ca_loc":1}}
+{
+  "items": [
+    {"id": "I1", "kind": "ca_loc", "fresh": 100.0},
+    {"id": "I2", "kind": "bong_sung", "fresh": 98.5}
+  ]
+}
 ```
+- Độ tươi ban đầu: 100. Hao tươi ở giỏ (Gather): `0.5/s`; hao tươi ở kho (Quán): `0.25/s`.
+- Ngưỡng ươn: `fresh < 30` phát sinh sự kiện `spoiled` và không thể nấu món.
+- Test Contract v1.3 từ chối file kho đếm cũ với mã lỗi 2.
 
-`gather --inventory-out` ghi kho một lần khi có `gather_end`. `quan --inventory` đọc file này ở tiến trình riêng. Khi cần phát triển Quán độc lập, dùng [kho mẫu](docs/contracts/inventory.sample.json). Xem [kế hoạch chia việc](docs/plan/phase-1.md) và [giao diện tích hợp](docs/plan/phase-1-integration.md).
-
-Phase 2 giữ schema này, thêm hai ID nguyên liệu `ca_keo` và `keo_neo`, và bổ sung chế độ `day` bàn giao kho trong bộ nhớ. Xem [kế hoạch Phase 2](docs/plan/phase-2.md) và [giao diện Test Contract v1.1](docs/plan/phase-2-integration.md).
+## Tính năng nổi bật Phase 4 (v1.0.0)
+- **Accessible UI**: Cảnh báo trực quan bằng nhãn và biểu tượng cho thủy quái đến gần, oxy dưới 25%, và khách chờ sắp hết kiên nhẫn (< 25%).
+- **High Contrast Mode**: Chế độ tương phản cao hỗ trợ người dùng khiếm thị màu.
+- **Hiệu năng & Độ bền**: Hỗ trợ đầy đủ bộ công cụ đo benchmark render và soak headless 10 ngày liên tục không dừng tiến trình.
 
 ## Tự do sáng tạo
 
