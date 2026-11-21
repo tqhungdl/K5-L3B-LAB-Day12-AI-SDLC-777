@@ -8,13 +8,13 @@ Ghi SHA của commit bàn giao, lệnh/cách kiểm và đường dẫn bằng c
 | AC-P4-02 | Benchmark thật và đúng 5 trường | Seed 42, 1280×720, 3 giây làm nóng và 30 giây đo. Edge 158 headless, Playwright 1.65.2, Windows build 19045, CPU AuthenticAMD Family 23 Model 24. [Số đo](../proof/phase-4/bench.json). | 60,13 FPS trung bình và 56,23 FPS 1% low. Tải 11,44 s, vượt mốc 10 s |
 | AC-P4-03 | Ba cảnh báo và tương phản cao | Edge ở 1280×720 với manifest v1.3. Enter bật, Space tắt. [Thủy quái và oxy](../proof/phase-4/ui/gather-v13-contrast.png), [khách sắp giận](../proof/phase-4/ui/quan-v13-contrast.png). | Kiểm trên bản ứng viên |
 | AC-P4-04 | Soak 10 Ngày trong một tiến trình | [Soak bản ứng viên](../proof/phase-4/soak-candidate.json) và kiểm lặp cùng seed trong [log hồi quy](../proof/phase-4/unittest.log). | 10 Ngày, 0 lỗi |
-| AC-P4-05 | Bản chạy từ clone sạch và gói Release | Giải nén [ZIP ứng viên](../proof/phase-4/release/cho-noi-v1.0.0.zip) vào thư mục sạch và kiểm CLI phục vụ canvas và menu Day. [Log đóng gói](../proof/phase-4/release/package-smoke.txt). | Gói ứng viên chạy trên Windows. Chờ kiểm clone của SHA bàn giao trên macOS/Linux |
-| AC-P4-06 | Hồ sơ dự án và phát hành | [Ghi chú phát hành](../../RELEASE_NOTES.md), [CHANGELOG](../../CHANGELOG.md), [CREDITS](../../CREDITS.md). | Chờ SHA bàn giao, tag và GitHub Release. Chưa xác nhận giấy phép để thêm LICENSE |
-| AC-P4-07 | Đóng góp, retro, demo | [Retro](../retro.md) đã rà hành động P2 và ghi lỗi AI. Chơi Day rút ngắn qua hai ca và đóng Shop, thu 72 nghìn. [Log Edge](../proof/phase-4/ui/day-v13.txt) · [Tổng kết](../proof/phase-4/ui/day-v13-summary.png). | Có 2/4 phản tư cá nhân. Demo nộp cuối còn chờ |
+| AC-P4-05 | Bản chạy từ clone sạch và gói Release | Clone GitHub sạch trên Ubuntu, chạy 12 test và kiểm CLI phục vụ canvas và menu Day. [Log Ubuntu](../proof/phase-4/release/linux-clean-clone.txt) · [Log gói ứng viên trên Windows](../proof/phase-4/release/package-smoke.txt). | Đạt kiểm clone Linux và khởi chạy gói ứng viên |
+| AC-P4-06 | Hồ sơ dự án và phát hành | SHA bàn giao là commit trên `main` chứa ma trận này, tra bằng `git rev-list -n 1 phase-4` và đối chiếu với `git rev-list -n 1 v1.0.0`. [GitHub Release v1.0.0](https://github.com/tqhungdl/K5-L3B-LAB-Day12-AI-SDLC-777/releases/tag/v1.0.0) · [Ghi chú](../../RELEASE_NOTES.md) · [CHANGELOG](../../CHANGELOG.md) · [CREDITS](../../CREDITS.md). | Chưa xác nhận quyền để thêm LICENSE |
+| AC-P4-07 | Đóng góp, retro, demo | [Retro](../retro.md) đã rà hành động P2 và ghi lỗi AI. [Demo MP4 36 giây](../proof/phase-4/phase-4-demo.mp4) ghi lượt Day rút ngắn trên Edge, kết quả test, commit của bốn thành viên và ma trận. | Có 2/4 phản tư cá nhân. Còn thiếu `tqhungdl` và `chesschillchill` |
 
-## Bản ứng viên
+## Nguồn bằng chứng
 
-- Base Git `6826ebf69e1e11da2435f23964831cdd6d220259` cùng các thay đổi Phase 4 trong working tree. Chưa có SHA bàn giao. GitHub `main` ở cùng base lúc kiểm và chưa có tag `phase-4` hoặc `v1.0.0`.
+- Benchmark, soak và 128 test dùng mã ứng viên đã commit tại `8cd94ad096549dbc5252c5e26f77683fd600f96f`. Kiểm Ubuntu dùng `8cea62d13428b320d6bcaed03ecca38c1b181942`, bản bổ sung nhật ký AI. Commit bàn giao bổ sung ma trận và bằng chứng phát hành.
 - Chuyển các fixture hồi quy chạy trên CLI mặc định sang schema cá thể hiện hành. Kiểm giỏ đếm lịch sử giữ tuning v1.1 trong fixture riêng. Test roster mẫu dùng fixture rỗng thay vì đọc `TEAM.md` đã điền.
 
 ## Baseline trước khi triển khai

@@ -1,0 +1,9 @@
+GitHub clean clone: 8cea62d13428b320d6bcaed03ecca38c1b181942
+Python 3.14.4
+Linux 6.18.58.1-microsoft-standard-WSL2
+đầu vào sai: items phải là mảng cá thể
+----------------------------------------------------------------------
+Ran 12 tests in 4.482s
+
+OK
+Live Day CLI served browser canvas and starting menu.
