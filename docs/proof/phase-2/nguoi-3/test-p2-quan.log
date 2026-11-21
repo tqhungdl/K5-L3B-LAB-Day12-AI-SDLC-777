@@ -1,0 +1,69 @@
+﻿python : test_01_two_stoves_cook_in_parallel_and_pick_oldest_order 
+(tests.test_p2_quan.TestPhase2Quan.test_01_two_stoves_cook_in_parallel_and_pick_oldest_order)
+At line:9 char:1
++ python -m unittest tests/test_p2_quan.py tests/test_p1_quan_customers ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (test_01_two_sto...k_oldest_order):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+AC-P2-04: 2 bếp B1, B2 nấu song song; B1 lấy đơn cũ nhất, B2 lấy đơn kế. ... ok
+test_02_four_tables_spawn_order_and_full_skip 
+(tests.test_p2_quan.TestPhase2Quan.test_02_four_tables_spawn_order_and_full_skip)
+AC-P2-04: 4 bàn T1->T2->T3->T4 nhận khách đúng lịch; đầy 4 bàn thì bỏ lượt (không no_dish). ... ok
+test_03_lau_mam_full_lifecycle_and_tip (tests.test_p2_quan.TestPhase2Quan.test_03_lau_mam_full_lifecycle_and_tip)
+AC-P2-04: Đủ 6 món & 6 nguyên liệu — nấu/bưng/phục vụ/trả tiền/boa cho Lẩu mắm (200k + 40k boa). ... ok
+test_04_day_plan_filtering_and_unlimited_planned_orders 
+(tests.test_p2_quan.TestPhase2Quan.test_04_day_plan_filtering_and_unlimited_planned_orders)
+AC-P2-05: Trong day, lọc theo kế hoạch ngày; có nguyên liệu món ngoài kế hoạch -> no_dish; ... ok
+test_05_day_plan_rejects_offplan_fixture_and_checks_d1_d5_math 
+(tests.test_p2_quan.TestPhase2Quan.test_05_day_plan_rejects_offplan_fixture_and_checks_d1_d5_math)
+AC-P2-05: Fixture khách/bếp dùng món ngoài kế hoạch ngày -> BadInput (mã 2); ... ok
+test_06_closing_cleans_two_stoves_hand_and_four_tables 
+(tests.test_p2_quan.TestPhase2Quan.test_06_closing_cleans_two_stoves_hand_and_four_tables)
+AC-P2-04: Hết ca với 4 bàn ở đủ trạng thái: ăn trả closing, chờ rời không trừ uy tín, dọn 2 bếp & tay. ... ok
+test_07_client_html_has_phase2_screens_and_hud_elements 
+(tests.test_p2_quan.TestPhase2Quan.test_07_client_html_has_phase2_screens_and_hud_elements)
+AC-P2-09: Kiểm tự động client HTML có đủ 6 món, 6 nguyên liệu, 8 màn, cảnh báo & pause/shop. ... ok
+test_leave_waiting_closing_does_not_reduce_reputation 
+(tests.test_p1_quan_customers.QuanCustomersUnitTests.test_leave_waiting_closing_does_not_reduce_reputation) ... ok
+test_leave_waiting_releases_reserved_and_updates_reputation 
+(tests.test_p1_quan_customers.QuanCustomersUnitTests.test_leave_waiting_releases_reserved_and_updates_reputation) ... 
+ok
+test_load_customers_defaults_and_auto_reserve 
+(tests.test_p1_quan_customers.QuanCustomersUnitTests.test_load_customers_defaults_and_auto_reserve) ... ok
+test_load_customers_rejects_contradictions 
+(tests.test_p1_quan_customers.QuanCustomersUnitTests.test_load_customers_rejects_contradictions) ... ok
+test_load_customers_valid_assigned_eating_and_unfulfillable 
+(tests.test_p1_quan_customers.QuanCustomersUnitTests.test_load_customers_valid_assigned_eating_and_unfulfillable) ... 
+ok
+test_oldest_reserved_tiebreaks_by_order_tick_then_table_id 
+(tests.test_p1_quan_customers.QuanCustomersUnitTests.test_oldest_reserved_tiebreaks_by_order_tick_then_table_id) ... ok
+test_spawn_customer_deterministic_by_seed_and_table_order 
+(tests.test_p1_quan_customers.QuanCustomersUnitTests.test_spawn_customer_deterministic_by_seed_and_table_order) ... ok
+test_spawn_customer_schedule_no_dish_and_full_tables 
+(tests.test_p1_quan_customers.QuanCustomersUnitTests.test_spawn_customer_schedule_no_dish_and_full_tables) ... ok
+test_tick_customers_decrements_only_active_timer 
+(tests.test_p1_quan_customers.QuanCustomersUnitTests.test_tick_customers_decrements_only_active_timer) ... ok
+test_invalid_gather_extra_node_or_fish_fields_exit_2 
+(tests.test_p1_quan_customers.ScenarioValidationHeadlessTests.test_invalid_gather_extra_node_or_fish_fields_exit_2) 
+... ok
+test_invalid_quan_scenarios_exit_2_without_writing_output (tests.test_p1_quan_customers.ScenarioValidationHeadlessTests
+.test_invalid_quan_scenarios_exit_2_without_writing_output) ... ok
+test_01_cook_started_and_dish_ready (tests.test_p1_quan_service.TestQuanService.test_01_cook_started_and_dish_ready)
+Đứng ở bếp B1 [2, 8], kho có nguyên liệu, có khách đặt đơn -> bấm interact: ... ok
+test_02_dish_picked_up (tests.test_p1_quan_service.TestQuanService.test_02_dish_picked_up)
+Bếp B1 đang ready với món -> bấm interact khi tay trống -> bưng lên tay, bếp về idle. ... ok
+test_03_served_with_tip (tests.test_p1_quan_service.TestQuanService.test_03_served_with_tip)
+Phục vụ tại bàn T1 khi kiên nhẫn còn >= 50% -> chốt boa floor(60 * 0.2) = 12. ... ok
+test_04_served_without_tip_when_low_patience 
+(tests.test_p1_quan_service.TestQuanService.test_04_served_without_tip_when_low_patience)
+Khách kiên nhẫn còn < 50% -> boa = 0. ... ok
+test_05_paid_when_finished_eating (tests.test_p1_quan_service.TestQuanService.test_05_paid_when_finished_eating)
+Khách ăn xong trả tiền, cộng uy tín và rời bàn. ... ok
+test_06_closing_pays_eating (tests.test_p1_quan_service.TestQuanService.test_06_closing_pays_eating)
+Khi hết ca: khách đang ăn lập tức trả tiền closing, phát quan_end. ... ok
+
+----------------------------------------------------------------------
+Ran 24 tests in 2.275s
+
+OK
