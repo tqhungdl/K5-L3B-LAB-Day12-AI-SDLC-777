@@ -103,7 +103,9 @@ class PhaseTwoScenarioTest(unittest.TestCase):
         self.assertEqual(quan.snapshot()["stock"], {})
 
     def test_invalid_monster_returns_cli_code_two_without_replacing_outputs(self):
-        with Workdir() as work, patch.object(headless, "load_contract", return_value={"tuning": self.tuning}):
+        with Workdir() as work, patch.object(headless, "load_contract", return_value={
+            "contract_version": "1.1", "tuning": self.tuning,
+        }):
             source = write_json(work.path("scenario.json"), {"gather": {"monsters": [
                 monster("M1", [10, 10], state="recoil"),
             ]}})

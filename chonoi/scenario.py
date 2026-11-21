@@ -5,7 +5,7 @@ import math
 
 from .errors import BadInput
 from .ids import id_key
-from .inventory import validate_items
+from .inventory import validate_item_list, validate_items
 
 GATHER_KEYS = {"player", "hold", "nodes", "fish", "random_fish", "monsters", "time_left_ticks"}
 DAY_KEYS = {"money", "earned", "reputation", "upgrades", "day_plan"}
@@ -39,7 +39,7 @@ def _check_ids(name, arr):
         seen.add(e["id"])
 
 
-def load_scenario(path, mode: str, tuning: dict) -> dict:
+def load_scenario(path, mode: str, tuning: dict, *, contract_version="1.1") -> dict:
     data = {}
     if path is not None:
         try:
@@ -52,12 +52,13 @@ def load_scenario(path, mode: str, tuning: dict) -> dict:
     if not isinstance(data, dict) or set(data) - set(modes):
         raise BadInput(f"khối sai mode: --mode {mode} chỉ nhận {', '.join(modes)}")
     blocks = {name: data.get(name, {}) for name in modes}
+    individual_items = contract_version == "1.2"
     if mode == "day":
         _validate_day(blocks["day"], tuning)
-        _validate_shift("gather", blocks["gather"], tuning, in_day=True)
-        _validate_shift("quan", blocks["quan"], tuning, in_day=True)
+        _validate_shift("gather", blocks["gather"], tuning, in_day=True, individual_items=individual_items)
+        _validate_shift("quan", blocks["quan"], tuning, in_day=True, individual_items=individual_items)
         return blocks
-    _validate_shift(mode, blocks[mode], tuning)
+    _validate_shift(mode, blocks[mode], tuning, individual_items=individual_items)
     return blocks[mode]
 
 
@@ -69,7 +70,7 @@ def _check_keys(name, block, allowed):
         raise BadInput(f"trường lạ/chưa hỗ trợ trong {name}: {sorted(extra)}")
 
 
-def _validate_shift(mode, block, tuning, *, in_day=False):
+def _validate_shift(mode, block, tuning, *, in_day=False, individual_items=False):
     allowed = GATHER_KEYS if mode == "gather" else QUAN_KEYS
     if mode == "quan" and in_day:
         allowed = allowed - {"stock", "reputation"}
@@ -80,9 +81,9 @@ def _validate_shift(mode, block, tuning, *, in_day=False):
         if isinstance(t, bool) or not isinstance(t, int) or not (1 <= t <= dur):
             raise BadInput(f"time_left_ticks phải là số nguyên trong [1, {dur}]")
     if mode == "gather":
-        _validate_gather(block, tuning, in_day=in_day)
+        _validate_gather(block, tuning, in_day=in_day, individual_items=individual_items)
     else:
-        _validate_quan(block, tuning, in_day=in_day)
+        _validate_quan(block, tuning, in_day=in_day, individual_items=individual_items)
 
 
 def _validate_day(block, tuning):
@@ -160,7 +161,7 @@ def _node_kinds(gather):
     return {node["kind"] for node in gather["nodes"]}
 
 
-def _validate_gather(b, tuning, *, in_day=False):
+def _validate_gather(b, tuning, *, in_day=False, individual_items=False):
     g = tuning["gather"]
     bounds = g["bounds"]
     node_kinds = _node_kinds(g)
@@ -172,7 +173,9 @@ def _validate_gather(b, tuning, *, in_day=False):
         raise BadInput("random_fish phải là boolean")
     if "hold" in b:
         h = b["hold"]
-        if not isinstance(h, list) or any(not isinstance(k, str) or k not in kinds for k in h):
+        if individual_items:
+            validate_item_list(h, kinds)
+        elif not isinstance(h, list) or any(not isinstance(k, str) or k not in kinds for k in h):
             raise BadInput("hold phải là mảng id nguyên liệu hợp lệ")
         if len(h) > g["hold_capacity"]:
             raise BadInput("hold vượt sức chứa")
@@ -281,7 +284,7 @@ def _validate_reputation(name, value, quan):
         raise BadInput(f"{name} phải trong [{lo}, {hi}]")
 
 
-def _validate_quan(b, tuning, *, in_day=False):
+def _validate_quan(b, tuning, *, in_day=False, individual_items=False):
     q = tuning["quan"]
     menu = tuning["menu"]
     qb = q["bounds"]
@@ -297,7 +300,10 @@ def _validate_quan(b, tuning, *, in_day=False):
     if "reputation" in b:
         _validate_reputation("reputation", b["reputation"], q)
     if "stock" in b:
-        validate_items(b["stock"], kinds)
+        if individual_items:
+            validate_item_list(b["stock"], kinds)
+        else:
+            validate_items(b["stock"], kinds)
     p = b.get("player", {})
     if not isinstance(p, dict) or set(p) - QUAN_PLAYER_KEYS:
         raise BadInput("quan.player chỉ có pos và vel")
@@ -391,7 +397,14 @@ def _validate_quan(b, tuning, *, in_day=False):
         eat_left = c.get("eat_ticks_left", 0)
         _nonneg_int(f"customers.{cid}.eat_ticks_left", eat_left)
         recipe = _norm_items(menu[dish_id]["recipe"])
-        if "reserved" in c:
+        if individual_items:
+            res = c.get("reserved", [])
+            if (not isinstance(res, list) or any(not isinstance(item, str) or not item for item in res)
+                    or len(set(res)) != len(res)):
+                raise BadInput(f"customers.{cid}: reserved phải là mảng id cá thể duy nhất")
+            if order_status != "reserved" and res:
+                raise BadInput(f"customers.{cid}: đơn {order_status} phải có reserved rỗng")
+        elif "reserved" in c:
             res = _norm_items(validate_items(c["reserved"], kinds))
             if order_status == "reserved":
                 if res != recipe:
@@ -421,7 +434,7 @@ def _validate_quan(b, tuning, *, in_day=False):
             if "base_price" in c:
                 _nonneg_int(f"customers.{cid}.base_price", c["base_price"])
         customers_by_id[cid] = (c, state, order_status, dish_id)
-        if res:
+        if res and not individual_items:
             reserved_entries.append((order_tick, id_key(table_id), id_key(cid), cid, res))
     for oid, dish in dishes_by_order.items():
         if oid not in customers_by_id:
@@ -437,7 +450,7 @@ def _validate_quan(b, tuning, *, in_day=False):
         if order_status == "assigned" and cid not in dishes_by_order:
             raise BadInput(f"customers.{cid}: đơn assigned phải có đúng một món ở bếp hoặc tay")
     # Chỉ kiểm tra giữ chỗ với `stock` khi scenario tự khai `stock` (nếu thiếu `stock`, `--inventory` có thể cấp kho).
-    if "stock" in b:
+    if "stock" in b and not individual_items:
         avail = validate_items(b["stock"], kinds)
         for _, _, _, cid, res in sorted(reserved_entries):
             for k, qty in res.items():

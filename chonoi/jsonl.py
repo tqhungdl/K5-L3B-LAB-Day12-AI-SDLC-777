@@ -1,6 +1,7 @@
 """Ghi JSONL tất định: làm tròn 3 chữ số khi XUẤT (tính toán dùng giá trị chính xác)."""
 
 import json
+from .inventory import fresh_number
 
 
 def _clean(v):
@@ -8,7 +9,10 @@ def _clean(v):
         r = round(v, 3)
         return 0.0 if r == 0 else r  # tránh -0.0
     if isinstance(v, dict):
-        return {k: _clean(x) for k, x in v.items()}
+        return {
+            k: fresh_number(x) if k == "fresh" else _clean(x)
+            for k, x in v.items()
+        }
     if isinstance(v, (list, tuple)):
         return [_clean(x) for x in v]
     return v

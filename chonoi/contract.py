@@ -24,10 +24,23 @@ def load_contract(path=DEFAULT_PATH) -> dict:
             c = json.load(f)
     except (OSError, ValueError) as e:
         raise BadInput(f"không đọc được {path}: {e}")
-    if not isinstance(c, dict) or c.get("contract_version") != "1.1":
-        raise BadInput("contract_version phải là 1.1")
-    validate_tuning(c.get("tuning"))
+    if not isinstance(c, dict) or c.get("contract_version") not in ("1.1", "1.2"):
+        raise BadInput("contract_version phải là 1.1 hoặc 1.2")
+    tuning = c.get("tuning")
+    validate_tuning(tuning)
+    if c["contract_version"] == "1.2":
+        _validate_freshness(tuning.get("freshness"))
+    elif "freshness" in tuning:
+        raise BadInput("tuning.freshness chỉ dùng với contract_version 1.2")
     return c
+
+
+def _validate_freshness(config):
+    expected = {"initial": 100, "gather_decay_per_s": 0.5, "quan_decay_per_s": 0.25, "spoiled_below": 30}
+    if not isinstance(config, dict) or set(config) != set(expected):
+        raise BadInput("tuning.freshness thiếu hoặc thừa khóa")
+    for key, value in expected.items():
+        _between(f"freshness.{key}", config[key], value, value)
 
 
 def _int_between(name, v, lo, hi):

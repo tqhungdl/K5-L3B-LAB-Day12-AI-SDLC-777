@@ -48,7 +48,7 @@ def _common(sim, tick, sim_tick, phase_tick, tuning, state):
 class Session:
     """Một lượt chơi: dựng sim, bước từng tick, lấy snapshot / dòng end."""
 
-    def __init__(self, mode, tuning, scenario, seed, inventory=None, days=1, contract_version="1.1"):
+    def __init__(self, mode, tuning, scenario, seed, inventory=None, days=1, *, contract_version="1.1"):
         self.mode = mode
         self.tuning = tuning
         self.contract_version = contract_version
@@ -134,14 +134,11 @@ class Session:
     def write_inventory_if_done(self, inventory_out):
         """File kho: ghi MỘT lần khi có gather_end; chưa kết thúc thì giữ nguyên file đích."""
         if self.mode == "gather" and self.sim.done and inventory_out:
-            try:
-                write_inventory(inventory_out, self.sim.inventory_items(), contract_version=self.contract_version)
-            except TypeError:
-                write_inventory(inventory_out, self.sim.inventory_items())
+            write_inventory(inventory_out, self.sim.inventory_items(), contract_version=self.contract_version)
 
 
 def run(mode, tuning, scenario, seed, frames, ticks, out_path, snapshot_every,
-        inventory=None, inventory_out=None, days=1, contract_version="1.1"):
+        inventory=None, inventory_out=None, days=1, *, contract_version="1.1"):
     sess = Session(mode, tuning, scenario, seed, inventory, days=days, contract_version=contract_version)
     player = InputPlayer(frames)
     w = JsonlWriter(out_path)
