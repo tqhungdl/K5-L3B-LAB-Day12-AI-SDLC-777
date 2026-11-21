@@ -1,0 +1,36 @@
+Phase 3 · Lát 2 Gather
+Bản chạy là thay đổi lát 2 trên commit gốc dbbc504, manifest v1.1.
+
+Lệnh đã chạy
+  PYTHONPATH=tests:. python3 -m unittest test_p3_gather test_p1_gather_resources test_p2_fish_data test_p2_gather_monsters -v
+  Ran 27 tests — OK
+
+  PYTHONPATH=tests:. python3 -m unittest discover -s tests -v
+  Ran 96 tests — OK khi có quyền mở cổng localhost.
+  Trong sandbox, 3 lỗi PermissionError ở test_live khi tạo socket.
+
+AC-P3-02 · Đạt ở GatherSim và Session với tuning v1.2
+  Hái cấp ID tiếp sau ID lớn nhất đã nạp. Giỏ giữ thứ tự nhặt,
+  kho xuất theo ID. Bắt thiếu một ô giữ đàn cá, cooldown và dãy ID.
+  Hàng vừa lấy giữ fresh 100 qua bước nhặt. Hàng có sẵn hao trước
+  tương tác. Pause giữ nguyên giỏ, resume hao đúng một lần.
+  Hai cá thể fresh 30 cùng ươn ở bước 1, phát theo thứ tự I2, I10.
+  Hai giá trị rất sát 30 giữ đúng phía ngưỡng khi mã hóa dữ liệu
+  sự kiện bằng JSON chuẩn. Ca về đúng 30 chỉ ươn ở bước kế tiếp.
+  Hit rồi ngất chia lost đúng thứ tự LIFO và xuất kho rỗng.
+  Ngất do ngạt xảy ra trước hit. Allocator cấp tiếp ID sau khi mất giỏ.
+
+AC-P3-05/06 · Chờ bản tích hợp
+  Smoke Gather → file → Quán chạy qua với kho v1.1.
+  v1.2 đã kiểm payload gather_end ở mức sim. Cần chạy smoke CLI
+  và day với manifest, loader, writer và consumer v1.2 trên cùng bản.
+  JSONL hiện vẫn làm tròn fresh như tọa độ. Cần giữ độ chính xác từ
+  item_rows ở lớp writer, rồi đối chiếu giá trị file/event/Quán tick 0.
+  Lặp smoke cho trường hợp ngất và dừng CLI trước gather_end.
+
+Giao diện và lý do đổi test
+  inventory.py bổ sung new_item, decay_items và item_rows theo API
+  đã chốt. Các hàm đọc/ghi kho đếm của starter giữ hành vi v1.1.
+  Smoke cá kèo/kèo nèo chọn fixture và assert kho theo version.
+  Hồi quy Cá Sấu giữ fixture v1.1, khai version rõ khi mock manifest.
+  Test mới xác nhận lost cá thể và thứ tự sự kiện theo luật v1.2.

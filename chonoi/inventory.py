@@ -5,15 +5,54 @@ Ghi: bỏ mục bằng 0, qua file tạm cùng thư mục rồi thay thế, byte
 """
 
 import json
+import math
 import os
 import tempfile
+from fractions import Fraction
 
 from .errors import BadInput
+from .ids import sort_by_id
 
 KINDS_P1 = ("ca_loc", "ca_linh", "bong_dien_dien", "bong_sung")
 FISH_KINDS = ("ca_linh", "ca_loc", "ca_keo")
 NODE_KINDS = ("bong_dien_dien", "bong_sung", "keo_neo")
 KINDS = FISH_KINDS + NODE_KINDS
+
+
+def new_item(ids, kind, initial):
+    return {"id": ids.new("I"), "kind": kind, "fresh": initial}
+
+
+def decay_items(items, decay_per_s, tick_hz, spoiled_below, location, events) -> set[str]:
+    """Hao tươi chính xác và phát sự kiện theo ID cho hàng vừa qua ngưỡng."""
+    decay = Fraction(str(decay_per_s)) / tick_hz
+    threshold = Fraction(str(spoiled_below))
+    spoiled = set()
+    for item in sort_by_id(items):
+        before = Fraction(str(item["fresh"]))
+        after = max(0, before - decay)
+        item["fresh"] = after
+        if before >= threshold > after:
+            spoiled.add(item["id"])
+            events.append(("spoiled", {
+                "item_id": item["id"], "kind": item["kind"], "location": location,
+            }))
+    return spoiled
+
+
+def item_rows(items):
+    """Sao dữ liệu kho sang số JSON, giữ nguyên thứ tự và phía ngưỡng."""
+    rows = []
+    for item in items:
+        fresh = item["fresh"]
+        if isinstance(fresh, Fraction):
+            value = float(fresh)
+            # Làm tròn lên có thể biến hàng vừa ươn thành hàng đúng ngưỡng.
+            if Fraction(str(value)) > fresh:
+                value = math.nextafter(value, -math.inf)
+            fresh = value
+        rows.append({"id": item["id"], "kind": item["kind"], "fresh": fresh})
+    return rows
 
 
 def validate_items(items, kinds=KINDS):

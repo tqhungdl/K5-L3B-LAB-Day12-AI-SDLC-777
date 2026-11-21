@@ -11,6 +11,11 @@
 - Manifest hiện còn v1.0. Kiểm chuyển sang Quán trên hai sim đã chạy, còn smoke `--mode day` và kho có nguyên liệu mới cần chạy lại sau khi tích hợp.
 - Phase 3, Scrum/Release chuẩn bị fixture bàn giao có vật phẩm mới ngay lúc kickoff. Integrator chạy qua CLI và lưu kết quả theo SHA ở mốc standup.
 
+## Phase 3 — Lát 2 Gather
+
+- Fixture có ID ngoài thứ tự nhặt giúp kiểm đồng thời thứ tự giỏ, thứ tự rơi LIFO và thứ tự xuất kho theo ID.
+- Test sát ngưỡng 30 cần kiểm cả event lẫn số sau khi đọc JSON. Khi tích hợp, chạy ca này qua writer thật và đối chiếu với file kho để phát hiện hao chính xác trong sim nhưng sai ở đầu ra.
+
 ## Phase 4 (cuối)
 - Rà lại hành động Phase 2: đã làm chưa? vì sao?
 - Điều tốt / điều tệ:

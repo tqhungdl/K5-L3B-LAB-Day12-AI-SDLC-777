@@ -100,7 +100,7 @@ def advance_monsters(sim, events):
     species = config["species"][monster["kind"]]
     sim.hp -= 1
     loss_count = math.floor(len(sim.hold) * config["loss_ratio"])
-    lost = [sim.hold.pop() for _ in range(loss_count)]
+    lost = sim._drop_from_hold(loss_count)
     sim.invuln_ticks = config["invuln_ticks"]
     monster["state"] = "recoil"
     monster["state_ticks_left"] = species["recoil_ticks"]
