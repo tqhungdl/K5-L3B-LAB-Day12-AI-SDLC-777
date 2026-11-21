@@ -98,7 +98,7 @@ class GatherResourcesTest(unittest.TestCase):
         catch_fish(sim, self.events)
         self.assertEqual(self.events, [("hold_full", {"action": "catch", "fish_id": "F1",
                                                      "required": self.gather["fish_yield"]["ca_linh"], "free": 1})])
-        self.assertEqual([school["id"] for school in sim.fish], ["F2", "F1"])
+        self.assertCountEqual([school["id"] for school in sim.fish], ["F2", "F1"])
         self.assertEqual(sim.hold, hold)
         self.assertEqual(sim.catch_cd_ticks, 0)
 

@@ -61,14 +61,16 @@ class LiveServerTest(unittest.TestCase):
         tuning = load_contract()["tuning"]
         gather = tuning["gather"]
         plant = gather["nodes"][0]
-        fish = gather["fish_initial"][0]
+        kind = "ca_linh"
+        fish = {"id": "F1", "kind": kind,
+                "pos": [gather["fish_spawn_x"][0], gather["fish_spawn_depths"][kind][0]]}
         cases = (
             (plant, "interact", "gather", gather["node_yield"]),
             (fish, "catch", "fish_caught", gather["fish_yield"][fish["kind"]]),
         )
         for resource, button, event, amount in cases:
             with self.subTest(button=button):
-                scenario = {"player": {"pos": resource["pos"]}}
+                scenario = {"player": {"pos": resource["pos"]}, "random_fish": False, "fish": [fish]}
                 server = LiveServer(LiveGame("gather", tuning, scenario, 1), port=0)
                 server.start()
                 try:

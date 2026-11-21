@@ -23,14 +23,17 @@ DEFAULT_DAY_DISHES = {
 def resolve_day_plans(tuning, overrides=None) -> dict:
     """Tính kế hoạch ngày (D1..D5): dishes và ingredients tính từ công thức."""
     menu = tuning.get("menu", {})
+    defaults = {entry["day"]: entry["dishes"] for entry in tuning.get("day_plan", [])}
+    if not defaults:
+        defaults = DEFAULT_DAY_DISHES
     plans = {}
     overrides = overrides or {}
 
     for d in range(1, 6):
         if d in overrides and "dishes" in overrides[d]:
             dishes = overrides[d]["dishes"]
-        elif d in DEFAULT_DAY_DISHES:
-            dishes = DEFAULT_DAY_DISHES[d]
+        elif d in defaults:
+            dishes = defaults[d]
         else:
             dishes = {}
 
