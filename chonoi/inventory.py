@@ -32,6 +32,8 @@ def decay_items(items, decay_per_s, tick_hz, spoiled_below, location, events) ->
         before = Fraction(str(item["fresh"]))
         after = max(0, before - decay)
         item["fresh"] = after
+        if "_fresh" in item:
+            item["_fresh"] = Fraction(after)
         if before >= threshold > after:
             spoiled.add(item["id"])
             events.append(("spoiled", {
@@ -87,31 +89,6 @@ def validate_item_list(rows, kinds=KINDS):
     return [row.copy() for row in rows]
 
 
-def new_item(ids, kind, initial):
-    return {"id": ids.new("I"), "kind": kind, "fresh": initial}
-
-
-def decay_items(items, decay_per_s, tick_hz, spoiled_below, location, events) -> set[str]:
-    decrement = Fraction(str(decay_per_s)) / tick_hz
-    spoiled = []
-    for item in items:
-        before = Fraction(str(item["fresh"]))
-        item["fresh"] = max(0, before - decrement)
-        if item["fresh"] < spoiled_below <= before:
-            spoiled.append(item)
-    for item in sort_by_id(spoiled):
-        events.append(("spoiled", {"item_id": item["id"], "kind": item["kind"], "location": location}))
-    return {item["id"] for item in spoiled}
-
-
-def item_rows(items):
-    return [
-        {"id": item["id"], "kind": item["kind"],
-         "fresh": fresh_number(item["fresh"])}
-        for item in items
-    ]
-
-
 def fresh_number(value):
     if not isinstance(value, Fraction):
         return value
@@ -123,6 +100,8 @@ def fresh_number(value):
 
 
 def fresh_price(list_price, items) -> int:
+    if not items:
+        return 0
     total = sum(Fraction(str(item["fresh"])) for item in items)
     return list_price * total // (100 * len(items))
 
