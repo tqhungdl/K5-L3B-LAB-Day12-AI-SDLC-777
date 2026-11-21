@@ -4,10 +4,11 @@ Thứ tự ghi: snapshot tick 0 -> với mỗi bước: sự kiện (theo thứ 
 hoặc buổi kết thúc) -> dòng 'end'. Mỗi tick tối đa một snapshot.
 
 `Session` là API bước tick gọn dùng chung cho headless (`run`) và cửa sổ chơi trực tiếp (`chonoi.live`).
-Hỗ trợ Phase 2:
+Hỗ trợ Phase 2 & 3:
 - mode 'day' và điều phối ngày.
 - Cơ chế Pause (Esc/P): đóng băng gameplay, chỉ tăng tick ngoài.
 - Dòng 'end' và event có gắn kèm 'day' và 'days_completed'.
+- Bàn giao kho cá thể và snapshot pha mới tại phase_tick: 0.
 """
 
 import math
@@ -22,14 +23,14 @@ from .sim.gather import GatherSim
 from .sim.quan import QuanSim
 
 
-def build_sim(mode, tuning, scenario, seed, inventory=None, days=1):
+def build_sim(mode, tuning, scenario, seed, inventory=None, days=1, contract_version="1.1"):
     streams, ids = Streams(seed), IdAllocator()
     if mode == "gather":
         return GatherSim(tuning, scenario, streams, ids)
     elif mode == "quan":
         return QuanSim(tuning, scenario, streams, ids, inventory=inventory)
     elif mode == "day":
-        return DaySim(tuning, scenario, streams, ids, days=days)
+        return DaySim(tuning, scenario, streams, ids, days=days, contract_version=contract_version)
     raise ValueError(f"mode không hợp lệ: {mode}")
 
 
@@ -47,10 +48,11 @@ def _common(sim, tick, sim_tick, phase_tick, tuning, state):
 class Session:
     """Một lượt chơi: dựng sim, bước từng tick, lấy snapshot / dòng end."""
 
-    def __init__(self, mode, tuning, scenario, seed, inventory=None, days=1):
+    def __init__(self, mode, tuning, scenario, seed, inventory=None, days=1, contract_version="1.1"):
         self.mode = mode
         self.tuning = tuning
-        self.sim = build_sim(mode, tuning, scenario, seed, inventory, days=days)
+        self.contract_version = contract_version
+        self.sim = build_sim(mode, tuning, scenario, seed, inventory, days=days, contract_version=contract_version)
         self.tick = 0
         self.paused = False
 
@@ -68,28 +70,34 @@ class Session:
 
     def step(self, inp) -> list:
         """Chạy một bước với `inp` (chonoi.inputs.InputState); trả các dòng event (tick = k + 1)."""
-        phase = getattr(self.sim, "phase", self.mode)
-        day_num = getattr(self.sim, "day", None)
-
-        def _wrap_event(name, data, t):
-            row = {"type": "event", "tick": t, "phase": phase, "name": name, "data": data}
-            if self.mode == "day" and day_num is not None:
-                row["day"] = day_num
-            return row
-
         # 1. Xét cạnh pause trước mọi hành động
         if not self.paused and inp.pressed("pause"):
             self.paused = True
             self.tick += 1
-            return [_wrap_event("paused", {}, self.tick)]
+            cur_phase = getattr(self.sim, "phase", self.mode)
+            row = {"type": "event", "tick": self.tick, "phase": cur_phase, "name": "paused", "data": {}}
+            if self.mode == "day":
+                row["day"] = getattr(self.sim, "day", 1)
+            return [row]
         elif self.paused:
             if inp.pressed("pause"):
                 self.paused = False
                 self.tick += 1
-                resumed_ev = _wrap_event("resumed", {}, self.tick)
+                cur_phase = getattr(self.sim, "phase", self.mode)
+                resumed_row = {"type": "event", "tick": self.tick, "phase": cur_phase, "name": "resumed", "data": {}}
+                if self.mode == "day":
+                    resumed_row["day"] = getattr(self.sim, "day", 1)
                 sub_events = self.sim.step(inp)
-                ev_rows = [_wrap_event(name, data, self.tick) for name, data in sub_events]
-                return [resumed_ev, *ev_rows]
+                ev_rows = []
+                for ev in sub_events:
+                    name, data, *rest = ev
+                    ev_phase = rest[0] if len(rest) > 0 else getattr(self.sim, "phase", self.mode)
+                    ev_day = rest[1] if len(rest) > 1 else getattr(self.sim, "day", None)
+                    r = {"type": "event", "tick": self.tick, "phase": ev_phase, "name": name, "data": data}
+                    if self.mode == "day" and ev_day is not None:
+                        r["day"] = ev_day
+                    ev_rows.append(r)
+                return [resumed_row, *ev_rows]
             else:
                 self.tick += 1
                 return []
@@ -97,7 +105,16 @@ class Session:
         # 2. Bước gameplay thông thường
         sub_events = self.sim.step(inp)
         self.tick += 1
-        return [_wrap_event(name, data, self.tick) for name, data in sub_events]
+        ev_rows = []
+        for ev in sub_events:
+            name, data, *rest = ev
+            ev_phase = rest[0] if len(rest) > 0 else getattr(self.sim, "phase", self.mode)
+            ev_day = rest[1] if len(rest) > 1 else getattr(self.sim, "day", None)
+            r = {"type": "event", "tick": self.tick, "phase": ev_phase, "name": name, "data": data}
+            if self.mode == "day" and ev_day is not None:
+                r["day"] = ev_day
+            ev_rows.append(r)
+        return ev_rows
 
     def end_row(self) -> dict:
         sim = self.sim
@@ -117,36 +134,52 @@ class Session:
     def write_inventory_if_done(self, inventory_out):
         """File kho: ghi MỘT lần khi có gather_end; chưa kết thúc thì giữ nguyên file đích."""
         if self.mode == "gather" and self.sim.done and inventory_out:
-            write_inventory(inventory_out, self.sim.inventory_items())
+            try:
+                write_inventory(inventory_out, self.sim.inventory_items(), contract_version=self.contract_version)
+            except TypeError:
+                write_inventory(inventory_out, self.sim.inventory_items())
 
 
 def run(mode, tuning, scenario, seed, frames, ticks, out_path, snapshot_every,
-        inventory=None, inventory_out=None, days=1):
-    sess = Session(mode, tuning, scenario, seed, inventory, days=days)
+        inventory=None, inventory_out=None, days=1, contract_version="1.1"):
+    sess = Session(mode, tuning, scenario, seed, inventory, days=days, contract_version=contract_version)
     player = InputPlayer(frames)
     w = JsonlWriter(out_path)
     try:
         # Ghi các sự kiện khởi tạo trước snapshot tick 0 nếu có (ví dụ day_start, day_plan)
         if hasattr(sess.sim, "flush_initial_events"):
-            for name, data in sess.sim.flush_initial_events():
-                ev = {"type": "event", "tick": 0, "phase": getattr(sess.sim, "phase", mode), "name": name, "data": data}
+            for ev in sess.sim.flush_initial_events():
+                name, data, *rest = ev
+                ev_phase = rest[0] if len(rest) > 0 else getattr(sess.sim, "phase", mode)
+                ev_day = rest[1] if len(rest) > 1 else getattr(sess.sim, "day", 1)
+                row = {"type": "event", "tick": 0, "phase": ev_phase, "name": name, "data": data}
                 if mode == "day":
-                    ev["day"] = getattr(sess.sim, "day", 1)
-                w.write(ev)
+                    row["day"] = ev_day
+                w.write(row)
 
         w.write(sess.snapshot())  # tick 0: sau khi dựng scenario, trước mọi input
         last_snapped = 0
+        old_phase = getattr(sess.sim, "phase", None)
+
         while sess.tick < ticks and not sess.done:
             inp = player.advance(sess.tick)  # bước k đọc input có tick == k
-            for row in sess.step(inp):
-                w.write(row)
-            if sess.tick % snapshot_every == 0 or sess.done:
+            evs = sess.step(inp)
+            for ev in evs:
+                w.write(ev)
+
+            new_phase = getattr(sess.sim, "phase", None)
+            # Khi đổi pha trong mode day: ghi ngay snapshot pha mới tại phase_tick 0!
+            if old_phase != new_phase and not sess.done:
                 w.write(sess.snapshot())
                 last_snapped = sess.tick
+                old_phase = new_phase
+            elif sess.tick % snapshot_every == 0 or sess.done:
+                w.write(sess.snapshot())
+                last_snapped = sess.tick
+
         if last_snapped != sess.tick:
             w.write(sess.snapshot())
+        sess.write_inventory_if_done(inventory_out)
         w.write(sess.end_row())
     finally:
         w.close()
-    sess.write_inventory_if_done(inventory_out)
-    return sess.sim

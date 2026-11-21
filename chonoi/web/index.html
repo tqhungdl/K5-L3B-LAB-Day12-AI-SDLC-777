@@ -519,6 +519,26 @@
       color: #1d352d;
     }
 
+    .slot.spoiled-item {
+      border: 2px dashed #d14949 !important;
+      opacity: 0.6;
+    }
+    .spoiled-badge {
+      display: inline-block;
+      background: #fde8e8;
+      color: #b01a1a;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 700;
+      margin-left: 6px;
+    }
+    .fresh-tag {
+      font-size: 13px;
+      color: #4d6258;
+      margin-left: 4px;
+    }
+
     @media (max-width: 1020px) {
       .board {
         grid-template: "scene" "panel" "controls" / minmax(0, 1fr);
@@ -658,7 +678,14 @@
           ingredients: { bong_dien_dien: 2, bong_sung: 4, ca_keo: 4, ca_loc: 2 },
         },
         player: { pos: [58, 22], vel: [0, 0], heading_deg: 0, oxygen_ticks: 360, oxygen_max_ticks: 1800, hp: 2, hp_max: 3, zero_oxy_ticks: 0, invuln_ticks: 0, catch_cd_ticks: 0, at_surface: false },
-        hold: ["ca_loc", "bong_sung", "bong_sung", "ca_keo", "ca_keo", "bong_dien_dien"],
+        hold: [
+          { id: "I1", kind: "ca_loc", fresh: 92.5 },
+          { id: "I2", kind: "bong_sung", fresh: 88.0 },
+          { id: "I3", kind: "bong_sung", fresh: 75.0 },
+          { id: "I4", kind: "ca_keo", fresh: 30.0 },
+          { id: "I5", kind: "ca_keo", fresh: 25.5 },
+          { id: "I6", kind: "bong_dien_dien", fresh: 99.0 },
+        ],
         hold_count: 6, hold_capacity: 12,
         nodes: [
           { id: "N1", kind: "bong_dien_dien", pos: [12, 0], ready: true, regrow_ticks: 0 },
@@ -673,7 +700,14 @@
         monsters: [
           { id: "M1", kind: "ca_sau", pos: [62, 24], waypoints: [[60, 24], [64, 24]], target_idx: 1, state: "chase", state_ticks_left: 0, recoil_dir: null },
         ],
-        stock: { bong_dien_dien: 2, bong_sung: 4, ca_keo: 4, ca_loc: 2, keo_neo: 1 },
+        stock: [
+          { id: "I1", kind: "bong_dien_dien", fresh: 95.0 },
+          { id: "I2", kind: "bong_sung", fresh: 80.0 },
+          { id: "I3", kind: "ca_keo", fresh: 30.0 },
+          { id: "I4", kind: "ca_keo", fresh: 28.0 },
+          { id: "I5", kind: "ca_loc", fresh: 85.0 },
+          { id: "I6", kind: "keo_neo", fresh: 90.0 },
+        ],
         hand: { order_id: "C1", dish_id: "ca_keo_nuong", base_price: 70 },
         stoves: [
           { id: "B1", pos: [2, 8], state: "cooking", dish: { order_id: "C2", dish_id: "canh_chua_ca_loc", base_price: 90 }, cook_ticks_left: 240, ready_ticks: 0 },
@@ -878,7 +912,10 @@
     }
     function countHold(hold) {
       const out = {};
-      for (const k of hold || []) out[k] = (out[k] || 0) + 1;
+      for (const item of hold || []) {
+        const k = typeof item === "object" && item !== null ? item.kind : item;
+        out[k] = (out[k] || 0) + 1;
+      }
       return out;
     }
     function isMonsterNear(state) {
@@ -928,9 +965,28 @@
       const counts = countHold(state.hold);
       const cap = state.hold_capacity || 12;
       const slots = Array.from({ length: cap }, (_, i) => {
-        const k = (state.hold || [])[i];
-        return k ? `<i class="slot full" style="--item:${ingredient(k).color}"></i>` : '<i class="slot"></i>';
+        const item = (state.hold || [])[i];
+        if (!item) return '<i class="slot"></i>';
+        const isObj = typeof item === "object" && item !== null;
+        const k = isObj ? item.kind : item;
+        const fresh = isObj && item.fresh !== undefined ? Number(item.fresh) : null;
+        const spoiled = fresh !== null && fresh < 30;
+        const title = isObj ? `${item.id}: ${ingredient(k).name} (${fresh.toFixed(1)}%)${spoiled ? " [ƯƠN]" : ""}` : ingredient(k).name;
+        return `<i class="slot full ${spoiled ? "spoiled-item" : ""}" style="--item:${ingredient(k).color}" title="${esc(title)}"></i>`;
       }).join("");
+
+      let holdDetailsHtml = "";
+      if (Array.isArray(state.hold) && state.hold.length > 0 && typeof state.hold[0] === "object") {
+        const rows = state.hold.map(it => {
+          const itInfo = ingredient(it.kind);
+          const fresh = Number(it.fresh ?? 100);
+          const isSpoiled = fresh < 30;
+          return `<li><i class="ingredient-dot" style="--item:${itInfo.color}"></i>${esc(itInfo.name)} <small>(${esc(it.id)})</small><strong class="${isSpoiled ? "spoiled-badge" : "fresh-tag"}">${isSpoiled ? "ƯƠN (" + fresh.toFixed(1) + "%)" : fresh.toFixed(1) + "%"}</strong></li>`;
+        }).join("");
+        holdDetailsHtml = `<ul class="ingredients">${rows}</ul>`;
+      } else {
+        holdDetailsHtml = ingredientList(Object.entries(counts), "Giỏ đang trống.");
+      }
 
       let planHtml = "";
       if (state.day_plan && state.day_plan.ingredients) {
@@ -944,9 +1000,9 @@
       }
 
       setHtml("panel", `
-    <div class="panel-title"><h2>Giỏ lưới</h2><span class="count">${state.hold_count || 0}/${cap}</span></div>
+    <div class="panel-title"><h2>Giỏ lưới</h2><span class="count">${state.hold_count || (state.hold ? state.hold.length : 0)}/${cap}</span></div>
     <div class="slots">${slots}</div>
-    ${ingredientList(Object.entries(counts), "Giỏ đang trống.")}
+    ${holdDetailsHtml}
     ${planHtml}
   `);
 
@@ -972,12 +1028,46 @@
       );
 
       const patMax = ((state.meta && state.meta.patience_s) || 60) * 60;
-      const available = { ...(state.stock || {}) };
-      for (const c of state.customers || []) {
-        for (const [k, amt] of Object.entries(c.reserved || {})) {
-          available[k] = (available[k] || 0) - amt;
+      const available = {};
+      let stockDetailsHtml = "";
+
+      if (Array.isArray(state.stock)) {
+        const reservedSet = new Set();
+        for (const c of state.customers || []) {
+          if (Array.isArray(c.reserved)) {
+            for (const rId of c.reserved) reservedSet.add(rId);
+          } else if (c.reserved && typeof c.reserved === "object") {
+            // backward compat
+          }
         }
+        for (const it of state.stock) {
+          const fresh = Number(it.fresh ?? 100);
+          const isSpoiled = fresh < 30;
+          const isRes = reservedSet.has(it.id);
+          if (!isSpoiled && !isRes) {
+            available[it.kind] = (available[it.kind] || 0) + 1;
+          }
+        }
+        const rows = state.stock.map(it => {
+          const itInfo = ingredient(it.kind);
+          const fresh = Number(it.fresh ?? 100);
+          const isSpoiled = fresh < 30;
+          const isRes = reservedSet.has(it.id);
+          const tag = isSpoiled ? "ƯƠN" : (isRes ? "GIỮ CHỖ" : "SẴN SÀNG");
+          const tagCls = isSpoiled ? "spoiled-badge" : (isRes ? "count" : "fresh-tag");
+          return `<li><i class="ingredient-dot" style="--item:${itInfo.color}"></i>${esc(itInfo.name)} <small>(${esc(it.id)})</small><strong class="${tagCls}">${tag} (${fresh.toFixed(1)}%)</strong></li>`;
+        }).join("");
+        stockDetailsHtml = `<div class="section-title">Chi tiết kho (${state.stock.length})</div><ul class="ingredients">${rows || "<li>Kho rỗng</li>"}</ul>`;
+      } else {
+        const stockMap = { ...(state.stock || {}) };
+        for (const c of state.customers || []) {
+          for (const [k, amt] of Object.entries(c.reserved || {})) {
+            stockMap[k] = (stockMap[k] || 0) - amt;
+          }
+        }
+        Object.assign(available, stockMap);
       }
+
       const byTable = new Map((state.customers || []).map((c) => [c.table_id, c]));
       const tableRows = (state.tables || []).map((tb) => {
         const c = byTable.get(tb.id);
@@ -1002,6 +1092,7 @@
     <div class="detail"><small>Trên tay</small><strong>${state.hand ? esc(dishName(state.hand.dish_id)) : "Tay trống"}</strong></div>
     <div class="section-title">Kho khả dụng</div>
     ${ingredientList(Object.entries(available).filter(([, n]) => n > 0), "Kho khả dụng đang trống.")}
+    ${stockDetailsHtml}
   `);
 
       el("scene").classList.remove("monster-alert");
@@ -1018,9 +1109,23 @@
         statCard("Uy tín", (state.reputation ?? 0).toFixed(1)) +
         statCard("Điểm", `${state.score || 0}`)
       );
+
+      let surplusHtml = "";
+      if (Array.isArray(state.stock)) {
+        const rows = state.stock.map(it => {
+          const itInfo = ingredient(it.kind);
+          const fresh = Number(it.fresh ?? 100);
+          const isSpoiled = fresh < 30;
+          return `<li><i class="ingredient-dot" style="--item:${itInfo.color}"></i>${esc(itInfo.name)} <small>(${esc(it.id)})</small><strong class="${isSpoiled ? "spoiled-badge" : "fresh-tag"}">${isSpoiled ? "ƯƠN (" + fresh.toFixed(1) + "%)" : fresh.toFixed(1) + "%"}</strong></li>`;
+        }).join("");
+        surplusHtml = `<ul class="ingredients">${rows || "<li>Không còn nguyên liệu dư.</li>"}</ul>`;
+      } else {
+        surplusHtml = ingredientList(Object.entries(state.stock || {}).filter(([, n]) => n > 0), "Không còn nguyên liệu dư.");
+      }
+
       setHtml("panel", `
     <h2>Kho dư cuối ngày</h2>
-    ${ingredientList(Object.entries(state.stock || {}).filter(([, n]) => n > 0), "Không còn nguyên liệu dư.")}
+    ${surplusHtml}
     <p class="muted">Kho dư sẽ được dọn khi qua Ngày kế tiếp.</p>
   `);
       el("scene").classList.remove("monster-alert");

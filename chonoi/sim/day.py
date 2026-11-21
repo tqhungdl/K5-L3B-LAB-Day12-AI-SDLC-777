@@ -1,10 +1,11 @@
-"""Điều phối trọn vẹn Vòng Ngày (mode: day) — Phase 2 (Test Contract v1.1).
+"""Điều phối trọn vẹn Vòng Ngày (mode: day) — Phase 2 & Phase 3 (Test Contract v1.1 & v1.2).
 
 Chu trình mỗi ngày:
     DayIntro/day_start -> day_plan -> gather -> quan -> shop -> (lặp lại hoặc kết thúc)
 
 Hỗ trợ chạy từ 1 đến 5 ngày (--days 1..5).
 Giữ tiền, uy tín, nâng cấp qua ngày.
+Phase 3: Bàn giao mảng cá thể {id, kind, fresh} qua các pha, cấp ID tăng liên tục.
 """
 
 from .gather import GatherSim
@@ -54,12 +55,22 @@ def resolve_day_plans(tuning, overrides=None) -> dict:
 class DaySim:
     mode = "day"
 
-    def __init__(self, tuning, scenario, streams, ids, days=1):
+    def __init__(self, tuning, scenario, streams, ids, days=1, contract_version="1.1"):
         self.tuning = tuning
         self.scenario = scenario or {}
         self.streams = streams
         self.ids = ids
         self.days = max(1, min(5, int(days)))
+        self.contract_version = contract_version
+
+        # Đăng ký trước các ID từ fixture (nếu có) vào IdAllocator để tránh va chạm
+        self._initial_gather_hold = None
+        sc_gather = self.scenario.get("gather", {})
+        if "hold" in sc_gather and isinstance(sc_gather["hold"], list):
+            self._initial_gather_hold = [dict(it) if isinstance(it, dict) else it for it in sc_gather["hold"]]
+            for it in sc_gather["hold"]:
+                if isinstance(it, dict) and "id" in it:
+                    self.ids.reserve(it["id"])
 
         scenario_day = self.scenario.get("day", {})
         self.day = 1
@@ -82,9 +93,9 @@ class DaySim:
         # Khởi tạo pha Gather ngày 1
         self.current_sim = self._build_gather_sim()
         self._initial_events = [
-            ("day_start", {}),
-            ("day_plan", self.day_plan),
-            ("phase_start", {})
+            ("day_start", {}, self.phase, self.day),
+            ("day_plan", self.day_plan, self.phase, self.day),
+            ("phase_start", {}, self.phase, self.day)
         ]
 
     def flush_initial_events(self) -> list:
@@ -98,6 +109,21 @@ class DaySim:
 
     def _build_gather_sim(self):
         sc_gather = dict(self.scenario.get("gather", {}))
+        # Với Ngày 2 trở đi: tạo ID mới cho giỏ mẫu theo thứ tự mảng và cùng kind/fresh ban đầu
+        if self.day > 1 and self._initial_gather_hold is not None:
+            new_hold = []
+            for it in self._initial_gather_hold:
+                if isinstance(it, dict):
+                    item_id = self.ids.new("I")
+                    new_hold.append({
+                        "id": item_id,
+                        "kind": it.get("kind"),
+                        "fresh": it.get("fresh", 100)
+                    })
+                else:
+                    new_hold.append(it)
+            sc_gather["hold"] = new_hold
+
         # Truyền day_number và active_upgrades
         try:
             return GatherSim(self.tuning, sc_gather, self.streams, self.ids,
@@ -141,26 +167,36 @@ class DaySim:
         self.sim_tick += 1
 
         sub_events = self.current_sim.step(inp)
-        events.extend(sub_events)
+        cur_phase = self.phase
+        cur_day = self.day
+        for item in sub_events:
+            if len(item) == 2:
+                name, data = item
+                events.append((name, data, cur_phase, cur_day))
+            else:
+                events.append(item)
 
         if self.current_sim.done:
             if self.phase == "gather":
                 hold_items = self.current_sim.inventory_items()
                 self.phase = "quan"
                 self.phase_tick = 0
-                events.append(("phase_start", {}))
                 self.current_sim = self._build_quan_sim(hold_items)
+                events.append(("phase_start", {}, self.phase, self.day))
 
             elif self.phase == "quan":
                 self.money = self.current_sim.money
                 self.earned = self.current_sim.earned
                 self.reputation = self.current_sim.reputation
-                surplus_stock = dict(self.current_sim.stock)
+                if isinstance(self.current_sim.stock, list):
+                    surplus_stock = [dict(it) for it in self.current_sim.stock]
+                else:
+                    surplus_stock = dict(self.current_sim.stock)
 
                 self.phase = "shop"
                 self.phase_tick = 0
-                events.append(("phase_start", {}))
                 self.current_sim = self._build_shop_sim(surplus_stock)
+                events.append(("phase_start", {}, self.phase, self.day))
 
             elif self.phase == "shop":
                 self.money = self.current_sim.money
@@ -174,10 +210,10 @@ class DaySim:
                     self.day_plan = self.plans.get(self.day, {})
                     self.phase = "gather"
                     self.phase_tick = 0
-                    events.append(("day_start", {}))
-                    events.append(("day_plan", self.day_plan))
-                    events.append(("phase_start", {}))
                     self.current_sim = self._build_gather_sim()
+                    events.append(("day_start", {}, self.phase, self.day))
+                    events.append(("day_plan", self.day_plan, self.phase, self.day))
+                    events.append(("phase_start", {}, self.phase, self.day))
                 else:
                     self.done = True
                     self.reason = "days_complete"
