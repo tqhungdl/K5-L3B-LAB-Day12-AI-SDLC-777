@@ -53,6 +53,7 @@ V11_DAY_PLAN = [
 
 def v11_tuning():
     t = copy.deepcopy(load_contract()["tuning"])
+    t.pop("freshness", None)  # Giữ kiểm hồi quy luật v1.1 (2 bếp/4 bàn/6 món/kế hoạch) độc lập với độ tươi v1.2
     t["quan"]["stoves"] = copy.deepcopy(V11_QUAN_STOVES)
     t["quan"]["tables"] = copy.deepcopy(V11_QUAN_TABLES)
     t["menu"] = copy.deepcopy(V11_MENU)
