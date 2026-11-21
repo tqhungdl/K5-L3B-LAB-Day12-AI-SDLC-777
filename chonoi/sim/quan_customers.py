@@ -1,6 +1,6 @@
-"""Quán — vòng đời khách, lịch đến, chọn món theo seed, giữ chỗ, kiên nhẫn (Phase 1, lát 3).
+"""Quán — vòng đời khách, lịch đến, chọn món theo seed, giữ chỗ, kiên nhẫn (Phase 1 & Phase 2).
 
-Giao diện tích hợp với `chonoi/sim/quan.py` (xem docs/plan/phase-1-integration.md):
+Giao diện tích hợp với `chonoi/sim/quan.py` (xem docs/plan/phase-2-integration.md):
   - load_customers(sim, scenario) -> list[dict]
   - tick_customers(sim)
   - oldest_reserved(sim) -> dict | None
@@ -10,7 +10,7 @@ Giao diện tích hợp với `chonoi/sim/quan.py` (xem docs/plan/phase-1-integr
 
 from ..errors import BadInput
 from ..ids import id_key, sort_by_id
-from ..inventory import validate_items
+from ..inventory import KINDS_P1, validate_items
 
 TICK = 60
 STOVE_STATES = ("idle", "cooking", "ready")
@@ -40,6 +40,15 @@ def _pos_int(name: str, v):
     return v
 
 
+def _valid_kinds(sim) -> tuple[str, ...]:
+    """Tập ID nguyên liệu hợp lệ theo thực đơn toàn cục (4 loại v1.0 hoặc 6 loại v1.1)."""
+    kinds = set(KINDS_P1)
+    full_menu = getattr(sim, "full_menu", sim.menu)
+    for dish in full_menu.values():
+        kinds.update(dish.get("recipe", {}).keys())
+    return tuple(sorted(kinds))
+
+
 def _validate_dish_payload(name: str, dish, menu: dict) -> dict:
     if not isinstance(dish, dict):
         raise BadInput(f"{name} phải là object món")
@@ -52,7 +61,7 @@ def _validate_dish_payload(name: str, dish, menu: dict) -> dict:
     if not isinstance(dish["order_id"], str) or not dish["order_id"]:
         raise BadInput(f"{name}.order_id phải là chuỗi khác rỗng")
     if not isinstance(dish["dish_id"], str) or dish["dish_id"] not in menu:
-        raise BadInput(f"{name}.dish_id không thuộc thực đơn: {dish['dish_id']!r}")
+        raise BadInput(f"{name}.dish_id không thuộc thực đơn hiện hành: {dish['dish_id']!r}")
     _pos_int(f"{name}.base_price", dish["base_price"])
     return dish
 
@@ -74,10 +83,13 @@ def available_stock(sim) -> dict:
 def load_customers(sim, scenario: dict) -> list[dict]:
     """Dựng khách từ scenario, điền mặc định, cấp giữ chỗ còn thiếu và kiểm mâu thuẫn.
 
-    Yêu cầu: `sim.stoves`, `sim.tables`, `sim.stock`, `sim.hand` đã được dựng trước khi gọi.
-    Ném `BadInput` (mã thoát 2) nếu fixture mâu thuẫn với kho, bếp, bàn hoặc tay.
+    Yêu cầu: `sim.menu` (đã lọc theo kế hoạch ngày nếu có), `sim.stoves`, `sim.tables`,
+    `sim.stock`, `sim.hand` đã được dựng trước khi gọi.
+    Ném `BadInput` (mã thoát 2) nếu fixture mâu thuẫn với kho thực, thực đơn, bếp, bàn hoặc tay.
     """
     menu = sim.menu
+    valid_kinds = _valid_kinds(sim)
+    sim.stock = _norm_items(validate_items(sim.stock, kinds=valid_kinds))
     known_tables = {tb["id"] for tb in sim.tables}
     patience_max = int(round(sim.t["patience_s"] * TICK))
 
@@ -151,7 +163,7 @@ def load_customers(sim, scenario: dict) -> list[dict]:
 
         dish_id = raw.get("dish_id")
         if not isinstance(dish_id, str) or dish_id not in menu:
-            raise BadInput(f"customers.{cid}: dish_id không thuộc thực đơn ({dish_id!r})")
+            raise BadInput(f"customers.{cid}: dish_id không thuộc thực đơn hiện hành ({dish_id!r})")
 
         order_tick = _nonneg_int(f"customers.{cid}.order_tick", raw.get("order_tick", 0))
         state = raw.get("state", "waiting")
@@ -169,7 +181,7 @@ def load_customers(sim, scenario: dict) -> list[dict]:
 
         recipe = _norm_items(menu[dish_id]["recipe"])
         if "reserved" in raw:
-            res = _norm_items(validate_items(raw["reserved"]))
+            res = _norm_items(validate_items(raw["reserved"], kinds=valid_kinds))
             if order_status == "reserved":
                 if res != recipe:
                     raise BadInput(f"customers.{cid}: reserved khác công thức món {dish_id}")
@@ -265,10 +277,7 @@ def oldest_reserved(sim):
 
 
 def leave_waiting(sim, customer: dict, reason: str, events: list):
-    """Nhả phần giữ thô, xóa khách đang chờ, cập nhật uy tín nếu `patience`, phát `customer_left`.
-
-    Lưu ý: Người 4 dọn món đang nấu / ready / trên tay của đơn `assigned` trước khi gọi hàm này.
-    """
+    """Nhả phần giữ thô, xóa khách đang chờ, cập nhật uy tín nếu `patience`, phát `customer_left`."""
     customer["reserved"] = {}
     sim.customers[:] = [c for c in sim.customers if c["id"] != customer["id"]]
     if reason == "patience":
@@ -286,7 +295,7 @@ def spawn_customer(sim, phase_tick: int, events: list):
     """Xét lịch sinh khách, bàn trống, kho khả dụng và `random_customers`.
 
     - Không tới lịch hoặc `random_customers` tắt hoặc hết bàn trống -> bỏ lượt (không phát `no_dish`).
-    - Có bàn trống nhưng không đủ nguyên liệu cho món nào -> phát `no_dish` (`{}`).
+    - Có bàn trống nhưng không đủ nguyên liệu cho món nào trong `sim.menu` -> phát `no_dish` (`{}`).
     - Chọn đều theo seed (`Streams.get("customer_order")`) trong các món đủ nguyên liệu (sắp Unicode),
       giữ đúng công thức ngay và phát `customer_arrived`.
     """
