@@ -9,6 +9,7 @@ Quản lý nâng cấp cuối ngày:
 """
 
 from ..ids import sort_by_id
+from ..inventory import item_rows
 
 DEFAULT_UPGRADES = {
     "oxygen": [
@@ -48,7 +49,7 @@ class ShopSim:
 
     def snapshot(self) -> dict:
         if isinstance(self.stock, list):
-            stock_data = sort_by_id([dict(it) for it in self.stock])
+            stock_data = item_rows(sort_by_id(self.stock))
         else:
             stock_data = {k: self.stock[k] for k in sorted(self.stock) if self.stock[k] > 0}
         return {

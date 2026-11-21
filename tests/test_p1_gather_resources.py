@@ -28,6 +28,8 @@ def fish(ident, x, kind="ca_linh"):
 class GatherResourcesTest(unittest.TestCase):
     def setUp(self):
         self.tuning = load_contract()["tuning"]
+        # Historical count-basket fixture for these resource rules.
+        self.tuning.pop("freshness", None)
         self.gather = self.tuning["gather"]
         self.events = []
 

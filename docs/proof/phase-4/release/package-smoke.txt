@@ -1,0 +1,7 @@
+Base commit: 6826ebf69e1e11da2435f23964831cdd6d220259
+Package built from the Phase 4 candidate working tree.
+SHA-256: 9333bb0000e13593ada70041966f8556d6e0b931391fabef94b7f4461c5cff6d
+Extracted into a clean temporary directory.
+Benchmark metrics tests: 2 passed.
+Ran python3 -m chonoi.live --mode day --days 5 --port 0.
+GET / returned the canvas and GET /state returned the Day menu.

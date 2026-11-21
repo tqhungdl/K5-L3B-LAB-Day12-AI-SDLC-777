@@ -8,6 +8,7 @@ Giữ tiền, uy tín, nâng cấp qua ngày.
 Phase 3: Bàn giao mảng cá thể {id, kind, fresh} qua các pha, cấp ID tăng liên tục.
 """
 
+from ..ids import sort_by_id
 from .gather import GatherSim
 from .quan import QuanSim
 from .shop import ShopSim
@@ -184,7 +185,10 @@ class DaySim:
 
         if self.current_sim.done:
             if self.phase == "gather":
-                hold_items = self.current_sim.inventory_items()
+                if self.current_sim.freshness is not None:
+                    hold_items = [dict(item) for item in sort_by_id(self.current_sim.hold)]
+                else:
+                    hold_items = self.current_sim.inventory_items()
                 self.phase = "quan"
                 self.phase_tick = 0
                 self.current_sim = self._build_quan_sim(hold_items)

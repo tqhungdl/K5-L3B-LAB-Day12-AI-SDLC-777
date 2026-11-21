@@ -32,4 +32,5 @@
 - Sáng tạo thêm được khuyến khích nhưng phải tắt ở headless (xem README, mục "Tự do sáng tạo").
 
 ## Skills / hooks của nhóm
-- (Ghi tên và khi nào dùng; tối thiểu 2 skill/hook/command nhóm tự viết, đặt ở `.agents/skills/` hoặc tương đương.)
+- `python3 -m chonoi.bench --seed 42 --duration 30 --out bench.json` đo render Gather bằng trình duyệt thật trước khi phát hành.
+- `python3 -m chonoi.soak --seed 7 --days 10 --out soak.json` kiểm một Session qua 10 Ngày trước khi chốt bản bàn giao.

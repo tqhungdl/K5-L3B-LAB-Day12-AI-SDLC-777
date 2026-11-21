@@ -21,8 +21,7 @@ class FishDataTest(unittest.TestCase):
         return build_sim("gather", self.tuning, {"monsters": [], **scenario}, seed, None)
 
     def test_default_data_and_day_plans(self):
-        expected_version = "1.2" if "freshness" in self.tuning else "1.1"
-        self.assertEqual(self.contract["contract_version"], expected_version)
+        self.assertEqual("freshness" in self.tuning, self.contract["contract_version"] in ("1.2", "1.3"))
         self.assertEqual(len(self.tuning["menu"]), 6)
         self.assertEqual(len(self.tuning["quan"]["stoves"]), 2)
         self.assertEqual(len(self.tuning["quan"]["tables"]), 4)
@@ -82,7 +81,7 @@ class FishDataTest(unittest.TestCase):
         self.assertEqual(self.gather(random_fish=False).fish, [])
 
     def test_standalone_inventory_handoff_with_new_ingredients(self):
-        individual_items = self.contract["contract_version"] == "1.2"
+        individual_items = "freshness" in self.tuning
         hold = [{"id": "I1", "kind": "keo_neo", "fresh": 100}] if individual_items else ["keo_neo"]
         with Workdir() as work:
             source = write_json(work.path("scenario.json"), {"gather": {

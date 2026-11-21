@@ -3,12 +3,13 @@
 import json
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 
 from chonoi.contract import load_contract
 from chonoi.errors import BadInput
 from chonoi.headless import main
 from chonoi.inventory import read_inventory, write_inventory
-from helpers import Workdir, events, read_jsonl, run_headless, write_json
+from helpers import Workdir, events, read_jsonl, snapshots, write_json
 
 
 class ContractV13Test(unittest.TestCase):
@@ -86,6 +87,13 @@ class ContractV13Test(unittest.TestCase):
                 "--inventory", inv_path, "--out", out_v13,
             ])
             self.assertEqual(code13, 0)
+            out_v12 = work.path("out_v12.jsonl")
+            with patch("chonoi.headless.load_contract", return_value=dict(self.manifest, contract_version="1.2")):
+                self.assertEqual(main([
+                    "--mode", "quan", "--seed", "42", "--ticks", "60",
+                    "--inventory", inv_path, "--out", out_v12,
+                ]), 0)
+            self.assertEqual(Path(out_v12).read_bytes(), Path(out_v13).read_bytes())
 
             # Test v1.2 via read/write_inventory directly
             read_12 = read_inventory(inv_path, contract_version="1.2")
@@ -107,6 +115,28 @@ class ContractV13Test(unittest.TestCase):
             inv_path = write_json(work.path("inv_v11.json"), {"items": {"ca_loc": 2}})
             read_11 = read_inventory(inv_path, contract_version="1.1")
             self.assertEqual(read_11, {"ca_loc": 2})
+
+    def test_day_exports_remaining_individual_stock_in_shop_snapshot(self):
+        with Workdir() as work:
+            scenario = write_json(work.path("day.json"), {
+                "gather": {"time_left_ticks": 1, "hold": [{"id": "I1", "kind": "ca_loc", "fresh": 95}]},
+                "quan": {"time_left_ticks": 2, "random_customers": False},
+            })
+            output = work.path("out.jsonl")
+            self.assertEqual(main([
+                "--mode", "day", "--seed", "42", "--ticks", "5",
+                "--scenario", scenario, "--out", output,
+            ]), 0)
+            rows = read_jsonl(output)
+            quan = next(row for row in snapshots(rows) if row["phase"] == "quan")
+            self.assertEqual(quan["stock"], events(rows, "gather_end")[0]["data"]["inventory"]["items"])
+            shop = [row for row in snapshots(rows) if row["phase"] == "shop"]
+            self.assertEqual(shop[0]["phase_tick"], 0)
+            item, = shop[0]["stock"]
+            self.assertEqual(set(item), {"id", "kind", "fresh"})
+            self.assertEqual((item["id"], item["kind"]), ("I1", "ca_loc"))
+            self.assertAlmostEqual(item["fresh"], 95 - 1 / 60)
+            self.assertEqual(shop[-1]["stock"], shop[0]["stock"])
 
             out_inv_11 = work.path("inv_v11_out.json")
             write_inventory(out_inv_11, {"ca_loc": 2}, contract_version="1.1")
