@@ -272,7 +272,7 @@ class QuanCustomersUnitTests(unittest.TestCase):
         self.assertEqual(ev_off, [])
 
         # Có nguyên liệu -> sinh khách, giữ chỗ; lượt kế hết bàn -> bỏ lượt (KHÔNG phát no_dish)
-        sim2 = make_sim(stock={"ca_loc": 1})
+        sim2 = make_sim(stock={"ca_loc": 1}, tables=[{"id": "T1", "pos": [9, 2]}])
         ev2 = []
         c = spawn_customer(sim2, first, ev2)
         self.assertIsNotNone(c)
