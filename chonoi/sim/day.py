@@ -55,12 +55,13 @@ def resolve_day_plans(tuning, overrides=None) -> dict:
 class DaySim:
     mode = "day"
 
-    def __init__(self, tuning, scenario, streams, ids, days=1, contract_version="1.1"):
+    def __init__(self, tuning, scenario, streams, ids, days=1, contract_version="1.1", *, allow_extended_days=False):
         self.tuning = tuning
         self.scenario = scenario or {}
         self.streams = streams
         self.ids = ids
-        self.days = max(1, min(5, int(days)))
+        req_days = int(days)
+        self.days = max(1, req_days) if allow_extended_days else max(1, min(5, req_days))
         self.contract_version = contract_version
 
         # Đăng ký trước các ID từ fixture (nếu có) vào IdAllocator để tránh va chạm
@@ -82,7 +83,7 @@ class DaySim:
         self.active_upgrades = dict(self.upgrades)
 
         self.plans = resolve_day_plans(tuning, scenario_day.get("day_plan"))
-        self.day_plan = self.plans.get(self.day, {})
+        self.day_plan = self._plan_for_day(self.day)
 
         self.phase = "gather"
         self.phase_tick = 0
@@ -97,6 +98,11 @@ class DaySim:
             ("day_plan", self.day_plan, self.phase, self.day),
             ("phase_start", {}, self.phase, self.day)
         ]
+
+    def _plan_for_day(self, day_num: int) -> dict:
+        """Lặp kế hoạch D1–D5 cho các Ngày mở rộng (ví dụ 6..10 trong soak)."""
+        plan_day = 1 + ((int(day_num) - 1) % 5)
+        return self.plans.get(plan_day, {})
 
     def flush_initial_events(self) -> list:
         evs = self._initial_events
@@ -207,7 +213,7 @@ class DaySim:
                     # Bắt đầu Ngày tiếp theo ngay tại tick này
                     self.day += 1
                     self.active_upgrades = dict(self.upgrades)
-                    self.day_plan = self.plans.get(self.day, {})
+                    self.day_plan = self._plan_for_day(self.day)
                     self.phase = "gather"
                     self.phase_tick = 0
                     self.current_sim = self._build_gather_sim()

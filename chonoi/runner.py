@@ -23,14 +23,19 @@ from .sim.gather import GatherSim
 from .sim.quan import QuanSim
 
 
-def build_sim(mode, tuning, scenario, seed, inventory=None, days=1, contract_version="1.1"):
+def build_sim(mode, tuning, scenario, seed, inventory=None, days=1,
+              contract_version="1.1", *, allow_extended_days=False):
     streams, ids = Streams(seed), IdAllocator()
     if mode == "gather":
         return GatherSim(tuning, scenario, streams, ids)
     elif mode == "quan":
         return QuanSim(tuning, scenario, streams, ids, inventory=inventory)
     elif mode == "day":
-        return DaySim(tuning, scenario, streams, ids, days=days, contract_version=contract_version)
+        return DaySim(
+            tuning, scenario, streams, ids, days=days,
+            contract_version=contract_version,
+            allow_extended_days=allow_extended_days,
+        )
     raise ValueError(f"mode không hợp lệ: {mode}")
 
 
@@ -48,11 +53,16 @@ def _common(sim, tick, sim_tick, phase_tick, tuning, state):
 class Session:
     """Một lượt chơi: dựng sim, bước từng tick, lấy snapshot / dòng end."""
 
-    def __init__(self, mode, tuning, scenario, seed, inventory=None, days=1, *, contract_version="1.1"):
+    def __init__(self, mode, tuning, scenario, seed, inventory=None, days=1, *,
+                 contract_version="1.1", allow_extended_days=False):
         self.mode = mode
         self.tuning = tuning
         self.contract_version = contract_version
-        self.sim = build_sim(mode, tuning, scenario, seed, inventory, days=days, contract_version=contract_version)
+        self.sim = build_sim(
+            mode, tuning, scenario, seed, inventory, days=days,
+            contract_version=contract_version,
+            allow_extended_days=allow_extended_days,
+        )
         self.tick = 0
         self.paused = False
 
