@@ -1,0 +1,5 @@
+PASS Gather mặc định seed 42, timestamp hook tăng, người chơi đứng ở bến
+PASS Demo Gather: ngưỡng oxy 25%, dưới ngưỡng, cạn/hồi oxy, quái rời và hook im lặng
+PASS Demo Quán: ngưỡng kiên nhẫn 25%, khách ăn/rời và hook im lặng
+PASS Live Day: bàn phím, intro tự chuyển sau 4 giây hai lượt, kho cá thể, Nhập kho → Quán → Kết quả → Shop → Tổng kết
+PASS Live Gather: thủy quái và oxy thấp hiện chữ trong chế độ tương phản cao; Chrome không báo lỗi JavaScript
