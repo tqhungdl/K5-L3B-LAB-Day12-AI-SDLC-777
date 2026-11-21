@@ -1,14 +1,16 @@
 # Bàn giao Phase 4 · Lát 2 UI/Live
 
-- Nhánh `p4/accessible-ui`. Commit chứa mã đã kiểm `2738fdd082c580edba2c5ca85c2636e11b30b3ff`.
+- Nhánh `p4/accessible-ui`. Commit chứa mã đã kiểm `f49728b618b98cbd75da9f9bead2038f168b5b38`.
 - Hồi quy trên manifest của nhánh và fixture kho cá thể v1.2 trong test Live. Chrome 157 headless có render canvas ở 1280×720 trên Linux x86_64, dùng manifest v1.2 tạm thời với cấu hình độ tươi Phase 3.
 - `chonoi/live.py` được sửa để nối màn trình bày vào phiên chơi và xuất kho cá thể ở Shop qua `item_rows()`. Trở về menu dựng lại lượt với cùng seed và scenario. Chơi lại ở Day mở màn giới thiệu Ngày 1. Tương phản cao mặc định tắt mỗi lần tải trang.
 
 | AC | Đã kiểm trên nhánh UI | Bằng chứng |
 |---|---|---|
 | AC-P4-02 | Gather thật, seed 42, đứng ở bến, hook trả các timestamp hữu hạn và tăng dần. Hook im lặng ở demo, menu, intro và sau khi vào Quán. | [Log Chrome](browser.log) |
-| AC-P4-03 | Bật/tắt bằng Tab, Enter và Space. Kiểm cả ba cảnh báo trên Live ở tương phản cao. Demo kiểm mốc 25%, oxy cạn/hồi và khách ngừng chờ. | [Gather](gather-contrast.png) · [Quán](quan-contrast.png) |
+| AC-P4-03 | Bật/tắt bằng Tab, Enter và Space. Tương phản chữ trên Live lần lượt 12,16:1 cho thủy quái, 11,22:1 cho oxy và 9,02:1 cho khách sắp giận. Demo kiểm mốc 25%, oxy cạn/hồi và khách ngừng chờ. | [Gather thường](gather-default.png) · [Gather tương phản cao](gather-contrast.png) · [Quán tương phản cao](quan-contrast.png) |
 | AC-P4-07 | Chơi một Ngày trên Live qua cả hai ca, kết quả, đóng Shop và Tổng kết. Test HTTP kiểm thời gian đứng yên ở màn chờ, số liệu phục vụ, boa, uy tín và kho cá thể. | [Tổng kết](day-summary.png) · [Log Chrome](browser.log) · [114/114 test](unittest.log) |
+
+Bố cục Gather vừa cửa sổ 1280×720 và giữ cảnh báo trong cảnh chơi ở 390×844.
 
 Chạy lại hồi quy từ gốc repo.
 
