@@ -62,7 +62,7 @@ class Contract(unittest.TestCase):
             self.assertEqual(run_headless("--mode", "gather", "--seed", "1", "--ticks", "10", "--inputs", bad, "--out", out)[0], 2)
             self.assertFalse(os.path.exists(out), "lỗi đầu vào phải thoát TRƯỚC khi ghi đầu ra")
             self.assertEqual(run_headless("--mode", "gather", "--seed", "1", "--ticks", "-1", "--out", out)[0], 2)
-            for button in ("jump", "attack"):  # nút lạ / của phase sau
+            for button in ("jump", "fly"):  # nút lạ chưa hỗ trợ
                 unk = write_json(w.path("unk.json"), frames({"tick": 0, button: True}))
                 self.assertEqual(run_headless("--mode", "gather", "--seed", "1", "--ticks", "10", "--inputs", unk, "--out", out)[0], 2, button)
             self.assertFalse(os.path.exists(out))
@@ -70,9 +70,15 @@ class Contract(unittest.TestCase):
     def test_con_03_old_and_future_modes_rejected(self):
         with Workdir() as w:
             out = w.path("o.jsonl")
-            for mode in ("river", "day"):
+            for mode in ("river", "future_mode"):
                 self.assertEqual(run_headless("--mode", mode, "--seed", "1", "--ticks", "0", "--out", out)[0], 2, mode)
             self.assertFalse(os.path.exists(out))
+            # day hợp lệ ở v1.1
+            self.assertEqual(run_headless("--mode", "day", "--seed", "1", "--ticks", "0", "--out", out)[0], 0)
+            # --days sai mode hoặc ngoài phạm vi [1, 5] trả mã 2
+            self.assertEqual(run_headless("--mode", "gather", "--seed", "1", "--ticks", "0", "--days", "1", "--out", out)[0], 2)
+            self.assertEqual(run_headless("--mode", "day", "--seed", "1", "--ticks", "0", "--days", "0", "--out", out)[0], 2)
+            self.assertEqual(run_headless("--mode", "day", "--seed", "1", "--ticks", "0", "--days", "6", "--out", out)[0], 2)
             old = write_json(w.path("old.json"), {"river": {"hold": []}})
             self.assertEqual(run_headless("--mode", "gather", "--seed", "1", "--ticks", "0", "--scenario", old, "--out", out)[0], 2)
 

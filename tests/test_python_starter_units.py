@@ -43,11 +43,11 @@ class Units(unittest.TestCase):
             with self.assertRaises(BadInput):
                 load_frames(write_json(w.path("i.json"), frames({"tick": 0, "move": [2, 0]})))
 
-    def test_catch_is_a_v10_button_and_attack_is_not(self):
+    def test_v11_buttons_accepted_and_unknown_rejected(self):
         with Workdir() as w:
-            load_frames(write_json(w.path("i.json"), frames({"tick": 0, "catch": True})))
+            load_frames(write_json(w.path("i.json"), frames({"tick": 0, "catch": True, "attack": True, "pause": True, "shop_done": True, "buy": "oxygen"})))
             with self.assertRaises(BadInput):
-                load_frames(write_json(w.path("j.json"), frames({"tick": 0, "attack": True})))
+                load_frames(write_json(w.path("j.json"), frames({"tick": 0, "jump": True})))
 
     def test_live_inputs_keep_fast_tap_edge(self):
         li = LiveInputs()
