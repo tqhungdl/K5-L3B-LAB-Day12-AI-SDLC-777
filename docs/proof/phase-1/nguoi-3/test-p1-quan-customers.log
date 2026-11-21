@@ -1,0 +1,36 @@
+﻿python : test_leave_waiting_closing_does_not_reduce_reputation 
+(tests.test_p1_quan_customers.QuanCustomersUnitTests.test_leave_waiting_closing_does_not_reduce_reputation) ... ok
+At line:6 char:1
++ python -m unittest tests/test_p1_quan_customers.py -v 2>&1 | Out-File ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (test_leave_wait...utation) ... ok:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+test_leave_waiting_releases_reserved_and_updates_reputation 
+(tests.test_p1_quan_customers.QuanCustomersUnitTests.test_leave_waiting_releases_reserved_and_updates_reputation) ... 
+ok
+test_load_customers_defaults_and_auto_reserve 
+(tests.test_p1_quan_customers.QuanCustomersUnitTests.test_load_customers_defaults_and_auto_reserve) ... ok
+test_load_customers_rejects_contradictions 
+(tests.test_p1_quan_customers.QuanCustomersUnitTests.test_load_customers_rejects_contradictions) ... ok
+test_load_customers_valid_assigned_eating_and_unfulfillable 
+(tests.test_p1_quan_customers.QuanCustomersUnitTests.test_load_customers_valid_assigned_eating_and_unfulfillable) ... 
+ok
+test_oldest_reserved_tiebreaks_by_order_tick_then_table_id 
+(tests.test_p1_quan_customers.QuanCustomersUnitTests.test_oldest_reserved_tiebreaks_by_order_tick_then_table_id) ... ok
+test_spawn_customer_deterministic_by_seed_and_table_order 
+(tests.test_p1_quan_customers.QuanCustomersUnitTests.test_spawn_customer_deterministic_by_seed_and_table_order) ... ok
+test_spawn_customer_schedule_no_dish_and_full_tables 
+(tests.test_p1_quan_customers.QuanCustomersUnitTests.test_spawn_customer_schedule_no_dish_and_full_tables) ... ok
+test_tick_customers_decrements_only_active_timer 
+(tests.test_p1_quan_customers.QuanCustomersUnitTests.test_tick_customers_decrements_only_active_timer) ... ok
+test_invalid_gather_extra_node_or_fish_fields_exit_2 
+(tests.test_p1_quan_customers.ScenarioValidationHeadlessTests.test_invalid_gather_extra_node_or_fish_fields_exit_2) 
+... ok
+test_invalid_quan_scenarios_exit_2_without_writing_output (tests.test_p1_quan_customers.ScenarioValidationHeadlessTests
+.test_invalid_quan_scenarios_exit_2_without_writing_output) ... ok
+
+----------------------------------------------------------------------
+Ran 11 tests in 1.769s
+
+OK
