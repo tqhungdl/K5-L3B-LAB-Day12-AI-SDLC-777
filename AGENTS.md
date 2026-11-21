@@ -21,6 +21,7 @@
 - Không sửa test cho xanh khi luật sai; phải sửa luật hoặc ghi lý do đổi test trong commit.
 
 ## Quy tắc làm việc với agent
+- **Phase 3:** đọc `PHASE3.md`, [phân công theo file](docs/plan/phase-3.md) và [giao diện kho v1.2](docs/plan/phase-3-integration.md). Đồng bộ schema trước khi bật manifest v1.2 và ghi lý do đổi test cũ.
 - **Phase 2:** đọc `PHASE2.md`, [bảng chia việc](docs/plan/phase-2.md) và [giao diện v1.1](docs/plan/phase-2-integration.md). Dùng v1.1 cho các điều khoản thay đổi. Báo Integrator khi cần đổi giao diện giữa các lát.
 - **Phase 1:** đọc `PHASE1.md`, [bảng chia việc](docs/plan/phase-1.md) và [giao diện tích hợp](docs/plan/phase-1-integration.md). Chỉ sửa các file thuộc lát được giao. Báo người phụ trách file và Integrator nếu cần đổi ranh giới.
 - Mỗi agent một việc rõ ràng (một lát). Cho agent đọc PRD/ticket đúng phase và hợp đồng kho trước.
