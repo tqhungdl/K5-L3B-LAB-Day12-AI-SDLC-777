@@ -1,0 +1,33 @@
+test_01_shop_with_item_list (tests.test_p3_day.TestDayPhase3.test_01_shop_with_item_list)
+Shop nhận danh sách cá thể [dict(id, kind, fresh)], snapshot xuất mảng sắp ID. ... ok
+test_02_id_allocator_sequential_across_days (tests.test_p3_day.TestDayPhase3.test_02_id_allocator_sequential_across_days)
+Day 1 giữ ID fixture (I5, I2); Day 2 cấp ID mới liên tục (I6, I7) không trùng. ... ok
+test_03_phase_transition_events_carry_new_phase_and_day (tests.test_p3_day.TestDayPhase3.test_03_phase_transition_events_carry_new_phase_and_day)
+Khi chuyển pha trong cùng tick: phase_start mang đúng pha mới và day mới. ... ok
+test_04_phase_transition_snapshot_at_phase_tick_zero (tests.test_p3_day.TestDayPhase3.test_04_phase_transition_snapshot_at_phase_tick_zero)
+Chạy headless: tại tick chuyển pha, snapshot pha mới được ghi nhận với phase_tick: 0. ... ok
+test_01_resolve_day_plans (tests.test_p2_day.TestDayAndShop.test_01_resolve_day_plans)
+Kế hoạch D1..D5 tính đúng nguyên liệu từ công thức món. ... ok
+test_02_shop_buy_upgrades_and_events (tests.test_p2_day.TestDayAndShop.test_02_shop_buy_upgrades_and_events)
+Shop nhận buy: 'oxygen', trừ tiền, tăng cấp, phát bought. ... ok
+test_03_shop_timeout_after_max_ticks (tests.test_p2_day.TestDayAndShop.test_03_shop_timeout_after_max_ticks)
+Shop không có tương tác sẽ tự đóng sau 600 tick với reason time. ... ok
+test_04_pause_freezes_gameplay (tests.test_p2_day.TestDayAndShop.test_04_pause_freezes_gameplay)
+Bấm pause làm game dừng lại, phát paused, snapshot có state: paused. ... ok
+test_05_day_mode_initial_events_and_snapshot (tests.test_p2_day.TestDayAndShop.test_05_day_mode_initial_events_and_snapshot)
+Chạy --mode day: phát day_start, day_plan, phase_start trước snapshot tick 0. ... ok
+test_day_mode_live_server (tests.test_live.LiveServerTest.test_day_mode_live_server) ... ok
+test_gather_inputs_update_basket_and_resources (tests.test_live.LiveServerTest.test_gather_inputs_update_basket_and_resources) ... ok
+test_state_input_and_clean_stop (tests.test_live.LiveServerTest.test_state_input_and_clean_stop) ... ok
+
+----------------------------------------------------------------------
+Ran 12 tests in 3.446s
+
+OK
+
+======================================================================
+FULL REGRESSION TEST SUITE:
+Command: python -m unittest discover -s tests -v
+Result: Ran 93 tests in 35.546s
+Status: OK
+======================================================================

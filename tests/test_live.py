@@ -93,6 +93,26 @@ class LiveServerTest(unittest.TestCase):
                 finally:
                     server.stop()
 
+    def test_day_mode_live_server(self):
+        tuning = load_contract()["tuning"]
+        server = LiveServer(LiveGame("day", tuning, {}, 1, days=1), port=0)
+        server.start()
+        try:
+            base = f"http://127.0.0.1:{server.port}"
+            code, body = _get(base + "/state")
+            self.assertEqual(code, 200)
+            st = json.loads(body)
+            self.assertEqual(st["mode"], "day")
+            self.assertEqual(st["day"], 1)
+            self.assertIn("day_plan", st)
+            self.assertIn("meta", st)
+            # Thử gửi input pause, shop_done, buy và presentation
+            self.assertEqual(_post(base + "/input", {"pause": True}), 200)
+            self.assertEqual(_post(base + "/input", {"shop_done": False, "buy": "oxygen"}), 200)
+            self.assertEqual(_post(base + "/presentation", {"action": "advance"}), 200)
+        finally:
+            server.stop()
+
 
 if __name__ == "__main__":
     unittest.main()
