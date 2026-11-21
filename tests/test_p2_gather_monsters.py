@@ -22,6 +22,8 @@ def monster(ident, pos, **fields):
 
 def gather_tuning():
     tuning = load_contract()["tuning"]
+    # Giữ fixture kho v1.1 cho hồi quy này; test_p3_gather kiểm kho cá thể.
+    tuning.pop("freshness", None)
     gather = tuning["gather"]
     # Fixture dùng độc lập với các lát dữ liệu cá và Shop.
     gather["fish_initial"] = []
@@ -205,7 +207,8 @@ class GatherMonstersTest(unittest.TestCase):
             ({"player": {"pos": [60, 24], "hp": 1}, "monsters": [monster("M1", [60, 24])],
               "hold": ["ca_keo"]}, "catch", ["monster_hit", "faint", "gather_end"], {}),
         )
-        with patch.object(headless, "load_contract", return_value={"tuning": self.tuning}):
+        contract = {"contract_version": "1.1", "tuning": self.tuning}
+        with patch.object(headless, "load_contract", return_value=contract):
             for fixture, button, names, items in cases:
                 with self.subTest(button=button, names=names), Workdir() as work:
                     source = write_json(work.path("scenario.json"), {"gather": {

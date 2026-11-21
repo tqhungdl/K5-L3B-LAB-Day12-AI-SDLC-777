@@ -22,8 +22,45 @@ Mỗi người sửa file test của mình trong `tests/` và lưu bằng chứn
 
 ### `p3/gather-freshness`
 
-- Thay chuỗi nguyên liệu trong giỏ bằng cá thể. Cấp ID sau khi đủ chỗ cho cả lượt hái/bắt, hao tươi trước hành động và phát `spoiled` đúng một lần. Giữ rơi đồ theo thứ tự nhặt, xuất kho rỗng khi ngất.
-- Đổi fixture giỏ và assert `lost`/kho bàn giao sang cá thể. Giữ các kiểm tra cá bơi/sinh, ngạt, bất tử và thứ tự Cá Sấu của Phase 2.
+**Mục tiêu lát 2.** Gather giữ từng nguyên liệu với `id`, `kind`, `fresh` từ lúc vào giỏ đến lúc rơi hoặc bàn giao. Người 2 chịu trách nhiệm AC-P3-02 và cung cấp đầu ra Gather cho AC-P3-05/06. Checkout gốc `dbbc504` đang chạy manifest v1.1. Phạm vi sprint này là lõi của nhóm 4 người, theo phân công ở trên.
+
+| Mốc trong Phase 3 | Việc của người 2 | Kết quả trước khi qua mốc |
+|---|---|---|
+| 0–7 | Đối chiếu API kho với người 1 và cách dùng allocator chung với người 4. Chốt fixture có ID ngoài thứ tự và đầu vào sát ngưỡng 30. | Có dữ liệu mẫu và thống nhất đầu vào/đầu ra cho cả hai bên bàn giao. |
+| 7–13 | Đổi biểu diễn giỏ v1.2, đăng ký ID fixture, thêm cá thể khi hái/bắt và xuất snapshot/kho. | Test đủ chỗ và thiếu chỗ, thứ tự nhặt và thứ tự ID đều qua trên bản ghép adapter. |
+| 13–20 | Nối hao tươi, `spoiled`, rơi LIFO và snapshot ngất. Chạy test Gather tập trung. | Có log ca qua ngưỡng và ca ngất đủ để gửi review chéo người 3. |
+| 20–25 | Pair với Integrator chạy smoke qua file và `day` trên bản ghép v1.2. Sửa lỗi Gather và chuyển lỗi giao diện cho chủ file. | Đã đối chiếu file, event và snapshot Quán. |
+| 25–32 | Chạy hồi quy, ghi lý do đổi test, lưu bằng chứng và ghi retro khi có kết quả. | Người 3 có log và SHA để cập nhật ma trận. Người 4 có commit đã review để tích hợp. |
+
+#### Trình tự sửa mã
+
+1. **`chonoi/sim/gather.py` · dựng giỏ.** Chọn biểu diễn theo `tuning.freshness` như giao diện tích hợp. Nhánh có freshness nhận mảng đã qua kiểm schema của lát 1, sao chép từng cá thể để một lượt mô phỏng không làm hao fixture gốc, rồi `ids.reserve` các ID fixture trên allocator được truyền vào. Giữ nguyên thứ tự mảng. Nhánh v1.1 tiếp tục nhận mảng tên nguyên liệu và dùng `hold_to_items` trong thời gian chuyển đổi.
+2. **`_try_add_to_hold(kind, amount)` · hái và bắt.** Dùng điểm vào hiện có của `gather_resources.py`. Kiểm đủ chỗ cho toàn lượt trước khi gọi `new_item` của lát 1, cấp một ID cho mỗi cá thể theo thứ tự nhập và lấy độ tươi ban đầu từ tuning. Mọi cá thể đều chiếm ô, kể cả hàng ươn. Khi thiếu chỗ, giữ sự kiện `hold_full` và trạng thái nút/cá/cooldown hiện hành, đồng thời giữ nguyên dãy ID. Giữ payload `gather` và `fish_caught` hiện có. Chỉ chỉnh file tài nguyên nếu cần để giữ giao diện này.
+3. **`GatherSim.step` · hao trước hành động.** Gọi `decay_items` ngay sau `tick_resources`, truyền tốc độ và ngưỡng từ `tuning.freshness`, `tick_hz` và `location="hold"`. Dùng helper chung cho tính chính xác, kẹp đáy và thứ tự phát `spoiled`. Hàng có từ đầu bước hao một lần, hàng nhặt trong bước giữ nguyên độ tươi khởi tạo đến bước sau. `Session` đã bỏ qua bước mô phỏng khi pause, nên hao tươi tự dừng ở điểm này. Giữ thứ tự bơi → oxy/ngạt → hit → kiểm bến rồi hái → bắt → xét hết giờ → cá bơi/sinh khi ca còn chạy.
+4. **`gather.py` và `gather_monsters.py` · rơi đồ.** Tái dùng thao tác lấy từ cuối giỏ ở hit và xả phần còn lại ở ngất. Đưa cá thể đã hao tươi trong bước vào `lost` bằng `item_rows`, theo đúng thứ tự lấy ra. Nếu hit làm HP về 0, `monster_hit` chứa phần rơi do hit, `faint` chứa phần giỏ còn lại, rồi `gather_end(fainted)` có `{"items":[]}`. Ngất do ngạt bỏ toàn bộ giỏ trước khi xét thủy quái.
+5. **Snapshot và bàn giao.** `snapshot()["hold"]` dùng bản sao theo thứ tự nhặt. `inventory_items()` dùng bản sao sắp bằng `sort_by_id` ở v1.2. `gather_end`, writer và `DaySim` lấy từ cùng giao diện; sắp đầu ra không làm đổi thứ tự giỏ. Người 1 sở hữu helper kho, kiểm scenario và độ chính xác JSONL. Người 4 sở hữu truyền version vào writer, bàn giao cùng tick và cấp ID mới cho fixture Ngày sau trên cùng allocator. Trao đổi với chủ file nếu smoke phát hiện lệch ở các điểm đó.
+
+#### Ca kiểm và lý do đổi test
+
+| File / ca | Kỳ vọng |
+|---|---|
+| `test_p3_gather.py` · ID và sức chứa | Fixture `I10, I2` giữ thứ tự giỏ; kho xuất `I2, I10`. Hái đủ chỗ nhận `I11` ở độ tươi khởi tạo. Bắt đàn nhiều sản lượng cấp một ID cho từng cá thể. Ca thiếu chỗ phát `hold_full`, giữ nút/cá và không bỏ số thứ tự ID. |
+| `test_p3_gather.py` · hao và ngưỡng | Với thứ tự giỏ `I10, I2` cùng `fresh:30`, tick 1 phát `spoiled` theo `I2, I10` đúng một lần. Fixture dưới 30 không phát lại, giá trị chạm đáy dừng ở 0. Sau tick đầu, cặp `30.0084` và `30.0083` còn ở hai phía ngưỡng; kiểm cả event và JSONL sau đọc lại. Hàng mới đạt 100 trong bước nhặt và chỉ giảm từ bước sau. Pause giữ nguyên giỏ, bước resume hao đúng một bước. |
+| `test_p3_gather.py` · ưu tiên trong bước | Ca hit rồi ngất có tổng `lost` đúng thứ tự nhặt ngược dù ID không tăng theo thứ tự giỏ. `spoiled` đi trước hit/ngạt/cập bến nếu trùng bước. Cập bến ở bước cuối ưu tiên hơn bắt/hết giờ; ngoài bến vẫn nhận hàng bắt/hái hợp lệ ở bước cuối. |
+| `test_p1_gather_resources.py` | Giữ assert chọn nút/đàn, bán kính, hồi nút, cooldown và đầy giỏ. Dùng `GatherSim` thật ở ca kiểm giỏ cá thể để fixture override không che lỗi cấp ID. |
+| `test_p2_fish_data.py` | Giữ assert seed, phản xạ biên, lượt rẽ, giới hạn sinh cá và kế hoạch Ngày. Đổi assert manifest `1.1` khi cấu hình bàn giao bật v1.2. Đổi fixture và giá trị kho kỳ vọng ở smoke cá kèo và kèo nèo theo schema mới. |
+| `test_p2_gather_monsters.py` | Giữ assert chọn quái, patrol/chase/recoil, bất tử và thứ tự ngạt/hit/ngất. Đổi fixture giỏ và assert `lost`/kho sang cá thể ở ca v1.2. Test nào mock `load_contract` cần khai version rõ theo đường đang kiểm. Giữ so từng byte qua hai lượt cùng seed. |
+
+Dùng fixture tuning v1.2 với adapter cho test trực tiếp trước khi manifest được bật. Giữ ca v1.1 dùng fixture chuỗi trong thời gian chuyển tiếp. Với `fresh`, dùng dung sai hợp đồng khi so giá trị quan sát; kiểm chính xác ID, tick, thứ tự sự kiện, phía ngưỡng và dữ liệu giống nhau giữa file, event và snapshot bàn giao.
+
+```bash
+PYTHONPATH=tests:. python3 -m unittest test_p3_gather test_p1_gather_resources test_p2_fish_data test_p2_gather_monsters -v
+PYTHONPATH=tests:. python3 -m unittest discover -s tests -v
+```
+
+Chạy [smoke qua file và Day](phase-3-integration.md#smoke-sau-khi-ghép-bản-v12) trên bản tích hợp. Kiểm thêm ngất ghi kho rỗng, tick limit trước `gather_end` giữ nguyên file đích có sẵn và không tạo file mới nếu đích chưa có. Ca qua file cần cùng ID, loại và fresh giữa `gather_end`, file và Quán tick 0. Ca Day cần cùng giá trị ở tick chuyển pha và chỉ hao theo tốc độ Quán từ bước kế.
+
+Baseline tại `dbbc504` chạy đạt 19 test Gather liên quan. Bộ đầy đủ chạy 88 test, với 3 lỗi `PermissionError` khi mở socket Live Server trong sandbox. Lưu lệnh, SHA, kết quả chạy thực tế và trích JSONL đuôi `.txt` tại `docs/proof/phase-3/nguoi-2/` sau khi triển khai. Ghi rõ test đổi vì schema hay luật mới trong commit hoặc bằng chứng. Người 3 review chéo và cập nhật ma trận, người 2 ghi nhận bài học đổi schema vào `docs/retro.md`.
 
 ### `p3/quan-freshness`
 

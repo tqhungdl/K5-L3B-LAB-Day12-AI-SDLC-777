@@ -21,7 +21,8 @@ class FishDataTest(unittest.TestCase):
         return build_sim("gather", self.tuning, {"monsters": [], **scenario}, seed, None)
 
     def test_default_data_and_day_plans(self):
-        self.assertEqual(self.contract["contract_version"], "1.1")
+        expected_version = "1.2" if "freshness" in self.tuning else "1.1"
+        self.assertEqual(self.contract["contract_version"], expected_version)
         self.assertEqual(len(self.tuning["menu"]), 6)
         self.assertEqual(len(self.tuning["quan"]["stoves"]), 2)
         self.assertEqual(len(self.tuning["quan"]["tables"]), 4)
@@ -81,9 +82,11 @@ class FishDataTest(unittest.TestCase):
         self.assertEqual(self.gather(random_fish=False).fish, [])
 
     def test_standalone_inventory_handoff_with_new_ingredients(self):
+        individual_items = self.contract["contract_version"] == "1.2"
+        hold = [{"id": "I1", "kind": "keo_neo", "fresh": 100}] if individual_items else ["keo_neo"]
         with Workdir() as work:
             source = write_json(work.path("scenario.json"), {"gather": {
-                "player": {"pos": [45, 24]}, "hold": ["keo_neo"], "time_left_ticks": 1,
+                "player": {"pos": [45, 24]}, "hold": hold, "time_left_ticks": 1,
                 "fish": [{"id": "F1", "kind": "ca_keo", "pos": [45, 24]}],
                 "random_fish": False, "monsters": [],
             }})
@@ -95,9 +98,16 @@ class FishDataTest(unittest.TestCase):
                 "--inputs", inputs, "--out", gathered, "--inventory-out", inventory,
             )
             self.assertEqual(code, 0, error)
-            expected = {"ca_keo": 2, "keo_neo": 1}
+            expected = json.loads(Path(inventory).read_text(encoding="utf-8"))["items"]
+            if individual_items:
+                self.assertEqual([(item["id"], item["kind"]) for item in expected],
+                                 [("I1", "keo_neo"), ("I2", "ca_keo"), ("I3", "ca_keo")])
+                decay = self.tuning["freshness"]["gather_decay_per_s"] / self.tuning["tick_hz"]
+                self.assertAlmostEqual(expected[0]["fresh"], 100 - decay, delta=0.01)
+                self.assertEqual([item["fresh"] for item in expected[1:]], [100, 100])
+            else:
+                self.assertEqual(expected, {"ca_keo": 2, "keo_neo": 1})
             self.assertEqual(events(read_jsonl(gathered), "gather_end")[0]["data"]["inventory"], {"items": expected})
-            self.assertEqual(json.loads(Path(inventory).read_text(encoding="utf-8")), {"items": expected})
             quan = work.path("quan.jsonl")
             code, error = run_headless(
                 "--mode", "quan", "--seed", "42", "--ticks", "0", "--inventory", inventory, "--out", quan,
