@@ -2,8 +2,8 @@
 
     python3 -m chonoi.live --mode gather|quan|day [--days 1..5] [--seed N] [--port 8000]
 
-Máy chủ HTTP nhỏ (ThreadingHTTPServer) phục vụ `chonoi/web/index.html` và hai API:
-    GET  /state  -> snapshot JSON hiện tại (cùng trường như dòng snapshot của headless) + `meta` + `events`
+Máy chủ HTTP nhỏ (ThreadingHTTPServer) phục vụ `chonoi/web/index.html` và các endpoint:
+    GET  /state  -> snapshot JSON hiện tại + `meta`, `events` và `presentation`
     POST /input  -> {"move": [a, b], "interact": bool, "catch": bool, "pause": bool, "shop_done": bool, "buy": str}
     POST /presentation -> {"action": "advance" | "menu"}
     POST /restart -> chơi lại từ đầu (cùng seed, cùng scenario)
@@ -25,7 +25,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from .contract import load_contract
 from .errors import BadInput
 from .inputs import LiveInputs
-from .inventory import read_inventory
+from .inventory import item_rows, read_inventory
 from .runner import Session
 from .scenario import load_scenario
 
@@ -33,6 +33,8 @@ WEB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
 TICK_S = 1.0 / 60.0
 MAX_BODY = 4096
 RECENT_EVENTS = 40
+PLAY_SCREENS = {"gather", "quan", "shop"}
+ADVANCE_SCREEN = {"day_intro": "gather", "evening_intro": "quan", "day_result": "shop"}
 
 
 class LiveGame:
@@ -57,6 +59,14 @@ class LiveGame:
                                inventory=self.inventory, days=self.days, contract_version=self.contract_version)
         self.inputs = LiveInputs()
         self.events = []
+        self.screen = "menu" if self.mode == "day" else self.mode
+        self.day_result = None
+        self.summary = None
+        self._served = 0
+        self._left = 0
+        self._tips = 0
+        self._shift_reputation = None
+        self._dish_counts = {}
         self._saved = False
         self.error = None
 
@@ -90,11 +100,13 @@ class LiveGame:
 
     def _tick_once(self):
         s = self.session
-        if s.done:
+        if s.done or self.screen not in PLAY_SCREENS:
             return
-        for row in s.step(self.inputs.advance()):
-            self.events.append(row)
+        rows = s.step(self.inputs.advance())
+        self.events.extend(rows)
         del self.events[:-RECENT_EVENTS]
+        if self.mode == "day":
+            self._update_day_presentation(rows)
         if s.done and not self._saved:
             self._saved = True
             if self.inventory_out:
@@ -103,12 +115,59 @@ class LiveGame:
                 except OSError as e:
                     sys.stderr.write(f"lỗi ghi kho: {e}\n")
 
+    def _set_screen(self, screen):
+        self.screen = screen
+        self.inputs = LiveInputs()
+
+    def _update_day_presentation(self, rows):
+        for row in rows:
+            name, data = row["name"], row["data"]
+            if name == "gather_end":
+                self._served = self._left = self._tips = 0
+                self._shift_reputation = self.session.sim.reputation
+                self.day_result = None
+                self._set_screen("evening_intro")
+            elif name == "served":
+                self._served += 1
+                dish = data["dish_id"]
+                self._dish_counts[dish] = self._dish_counts.get(dish, 0) + 1
+            elif name == "customer_left":
+                self._left += 1
+            elif name == "paid":
+                self._tips += data["tip"]
+            elif name == "quan_end":
+                self.day_result = {
+                    "served": self._served, "left": self._left,
+                    "shift_earned": data["shift_earned"], "tip": self._tips,
+                    "reputation_delta": data["reputation"] - self._shift_reputation,
+                }
+                self._set_screen("day_result")
+            elif name == "shop_end":
+                if self.session.done:
+                    result = self.session.end_row()
+                    best = max(self._dish_counts.values(), default=0)
+                    self.summary = {key: result[key] for key in ("money", "earned", "score", "reputation")}
+                    self.summary["top_dishes"] = sorted(
+                        dish for dish, count in self._dish_counts.items() if count == best
+                    )
+                    self._set_screen("summary")
+                else:
+                    self.day_result = None
+                    self._set_screen("day_intro")
+
     # --- API cho handler -----------------------------------------------------------
     def state_json(self) -> bytes:
         with self._lock:
             snap = self.session.snapshot()
             cur_phase = getattr(self.session.sim, "phase", self.mode)
+            if cur_phase == "shop" and isinstance(snap["stock"], list):
+                snap["stock"] = item_rows(snap["stock"])
             snap["meta"] = self.tuning.get(cur_phase, self.tuning.get(self.mode, {}))
+            if "freshness" in self.tuning:
+                snap["meta"] = {**snap["meta"], "freshness": self.tuning["freshness"]}
+            snap["presentation"] = {
+                "screen": self.screen, "day_result": self.day_result, "summary": self.summary,
+            }
             snap["events"] = list(self.events)
             snap["finished"] = self.session.done
             snap["reason"] = self.session.sim.reason if self.session.done else None
@@ -133,11 +192,26 @@ class LiveGame:
             if not isinstance(buy, str):
                 raise ValueError("buy phải là chuỗi")
         with self._lock:
-            self.inputs.set(move, buy=buy, **buttons)
+            if self.screen in PLAY_SCREENS and not self.session.done:
+                self.inputs.set(move, buy=buy, **buttons)
+
+    def set_presentation(self, action):
+        if action not in ("advance", "menu"):
+            raise ValueError("action phải là advance hoặc menu")
+        with self._lock:
+            if action == "menu":
+                self._reset()
+                self._set_screen("menu")
+            elif self.screen == "menu":
+                self._set_screen("day_intro" if self.mode == "day" else self.mode)
+            elif self.screen in ADVANCE_SCREEN:
+                self._set_screen(ADVANCE_SCREEN[self.screen])
 
     def restart(self):
         with self._lock:
             self._reset()
+            if self.mode == "day":
+                self._set_screen("day_intro")
 
 
 class _Handler(BaseHTTPRequestHandler):
@@ -185,8 +259,10 @@ class _Handler(BaseHTTPRequestHandler):
                     raise ValueError("body phải là object")
                 self.game.set_input(body)
             elif path == "/presentation":
-                # Nhận thông điệp advance/menu từ UI client
-                pass
+                body = json.loads(raw.decode("utf-8") or "{}")
+                if not isinstance(body, dict):
+                    raise ValueError("body phải là object")
+                self.game.set_presentation(body.get("action"))
             elif path == "/restart":
                 self.game.restart()
             else:

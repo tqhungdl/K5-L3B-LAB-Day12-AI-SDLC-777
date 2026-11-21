@@ -549,6 +549,38 @@
         max-height: 360px;
       }
     }
+    :root.high-contrast {
+      color-scheme: dark;
+      background: #000;
+      color: #fff;
+    }
+
+    .high-contrast :is(.stat, aside, .card, .shop-item, .order, .pill, .count, .badge, button, kbd) {
+      background: #000;
+      color: #fff;
+      border-color: #fff;
+    }
+
+    .high-contrast :is(.stat span, .muted, .fps-tag, .detail small, .section-title, .shop-item small,
+      .done-item, .fresh-tag, .ingredients strong, .controls) {
+      color: #fff;
+    }
+
+    .high-contrast :is(.badge.alert-monster, .badge.alert-oxy, .order.low-patience, .stat.danger, .spoiled-badge,
+      button[aria-pressed="true"], button:hover:not(:disabled)) {
+      background: #ffdf00;
+      border-color: #ffdf00;
+      color: #000;
+      animation: none;
+    }
+
+    .high-contrast .stat.danger span {
+      color: #000;
+    }
+
+    .high-contrast button:focus-visible {
+      outline-color: #67e8ff;
+    }
   </style>
 </head>
 
@@ -562,6 +594,7 @@
       </div>
       <div class="top-actions">
         <span class="fps-tag" id="fps-tag">60 FPS</span>
+        <button type="button" id="btn-contrast" aria-pressed="false">Tương phản cao</button>
         <button type="button" id="btn-pause">Tạm dừng (P)</button>
         <button type="button" class="restart" id="btn-restart">↻ Chơi lại</button>
       </div>
@@ -577,7 +610,7 @@
           <div class="badge" id="location">Sông Chín Khúc</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
             <div class="badge alert-monster" id="badge-monster" hidden>Thủy quái!</div>
-            <div class="badge alert-oxy" id="badge-oxy" hidden>Hết hơi!</div>
+            <div class="badge alert-oxy" id="badge-oxy" hidden>Oxy sắp hết</div>
           </div>
         </div>
 
@@ -662,14 +695,14 @@
     };
 
     let snap = null, offline = false, exited = false;
-    let dayIntroTimer = null, dayIntroKey = "", dayIntroSent = false;
+    let dayIntroTimer = null, dayIntroSent = false;
     const rendered = new Map();
 
     // ---------- Chế độ xem trước snapshot mẫu (?demo=...) để test UI độc lập ----------
     const demoScreen = new URLSearchParams(location.search).get("demo");
     function buildDemoSnapshot(screen) {
       const base = {
-        tick: 120, sim_tick: 120, mode: "day", phase: screen === "quan" ? "quan" : screen === "shop" ? "shop" : "gather",
+        tick: 120, sim_tick: 120, mode: "day", phase: ["quan", "evening_intro"].includes(screen) ? "quan" : screen === "shop" ? "shop" : "gather",
         phase_tick: 120, state: screen === "pause" ? "paused" : "playing",
         day: 3, time_left_ticks: 1500, money: 460, earned: 710, shift_earned: 290, reputation: 3.6, score: 1010,
         upgrades: { oxygen: 1, hp: 0 }, active_upgrades: { oxygen: 0, hp: 0 },
@@ -739,7 +772,8 @@
           summary: { money: 460, earned: 1260, score: 1660, reputation: 4.2, top_dishes: ["lau_mam", "ca_keo_nuong"] },
         },
       };
-      if (screen === "quan") base.player = { pos: [8, 5], vel: [0, 0] };
+      if (base.phase === "quan") base.player = { pos: [8, 5], vel: [0, 0] };
+      base.meta.freshness = { spoiled_below: 30 };
       return base;
     }
 
@@ -821,8 +855,22 @@
         });
       } catch (_) { }
     }
+    function resetDayIntro() {
+      clearTimeout(dayIntroTimer);
+      dayIntroTimer = null;
+      dayIntroSent = false;
+    }
+
+    function advanceDayIntro() {
+      if (dayIntroSent) return;
+      dayIntroSent = true;
+      clearTimeout(dayIntroTimer);
+      sendPresentation("advance");
+    }
+
     function restartGame() {
       exited = false;
+      resetDayIntro();
       if (demoScreen) { snap = buildDemoSnapshot(demoScreen); return; }
       fetch("/restart", { method: "POST" }).catch(() => { });
       lastSent = "";
@@ -831,6 +879,10 @@
     }
 
     el("btn-restart").addEventListener("click", restartGame);
+    el("btn-contrast").addEventListener("click", (event) => {
+      const enabled = document.documentElement.classList.toggle("high-contrast");
+      event.currentTarget.setAttribute("aria-pressed", String(enabled));
+    });
     el("btn-pause").addEventListener("click", () => {
       if (isGameplayScreen(activeScreen())) pulseButton("pause");
     });
@@ -838,10 +890,9 @@
     addEventListener("keydown", (e) => {
       const k = e.key.toLowerCase();
       const scr = activeScreen();
-      if (scr === "day_intro" && !dayIntroSent && !e.repeat) {
-        dayIntroSent = true;
-        clearTimeout(dayIntroTimer);
-        sendPresentation("advance");
+      if (k === "tab" || (["enter", " "].includes(k) && e.target instanceof HTMLButtonElement)) return;
+      if (scr === "day_intro" && !e.repeat && !["shift", "control", "alt", "meta"].includes(k)) {
+        advanceDayIntro();
         e.preventDefault();
         return;
       }
@@ -860,7 +911,7 @@
         e.preventDefault();
         return;
       }
-      if (k === " " && e.target instanceof HTMLButtonElement) return;
+      if (!isGameplayScreen(scr) && k !== "r") return;
       if (e.repeat) { if (k === " " || k.startsWith("arrow")) e.preventDefault(); return; }
       if (MOVE_KEYS[k]) { down.add(MOVE_KEYS[k]); e.preventDefault(); }
       else if (k === "e") down.add("interact");
@@ -884,7 +935,12 @@
       if (demoScreen) { snap = buildDemoSnapshot(demoScreen); offline = false; return; }
       try {
         const r = await fetch("/state", { cache: "no-store" });
+        const previousScreen = activeScreen();
         snap = await r.json();
+        if (activeScreen() !== previousScreen) {
+          down.clear();
+          lastSent = "";
+        }
         offline = false;
       } catch (_) { offline = true; }
       setTimeout(poll, 16);
@@ -917,6 +973,9 @@
         out[k] = (out[k] || 0) + 1;
       }
       return out;
+    }
+    function isSpoiled(item, state) {
+      return item.fresh < state.meta?.freshness?.spoiled_below;
     }
     function isMonsterNear(state) {
       const p = state.player;
@@ -970,8 +1029,8 @@
         const isObj = typeof item === "object" && item !== null;
         const k = isObj ? item.kind : item;
         const fresh = isObj && item.fresh !== undefined ? Number(item.fresh) : null;
-        const spoiled = fresh !== null && fresh < 30;
-        const title = isObj ? `${item.id}: ${ingredient(k).name} (${fresh.toFixed(1)}%)${spoiled ? " [ƯƠN]" : ""}` : ingredient(k).name;
+        const spoiled = isObj && isSpoiled(item, state);
+        const title = fresh !== null ? `${item.id}: ${ingredient(k).name} (${fresh.toFixed(1)}%)${spoiled ? " [ƯƠN]" : ""}` : ingredient(k).name;
         return `<i class="slot full ${spoiled ? "spoiled-item" : ""}" style="--item:${ingredient(k).color}" title="${esc(title)}"></i>`;
       }).join("");
 
@@ -1009,7 +1068,8 @@
       const monsterDanger = isMonsterNear(state);
       el("scene").classList.toggle("monster-alert", monsterDanger);
       el("badge-monster").hidden = !monsterDanger;
-      el("badge-oxy").hidden = !oxyZero;
+      el("badge-oxy").hidden = !oxyLow;
+      if (oxyLow) setText("badge-oxy", oxyZero ? "Hết hơi!" : "Oxy sắp hết");
 
       const hint = gatherProximityHint(state);
       el("prompt-hint").hidden = !hint;
@@ -1036,25 +1096,21 @@
         for (const c of state.customers || []) {
           if (Array.isArray(c.reserved)) {
             for (const rId of c.reserved) reservedSet.add(rId);
-          } else if (c.reserved && typeof c.reserved === "object") {
-            // backward compat
           }
         }
         for (const it of state.stock) {
-          const fresh = Number(it.fresh ?? 100);
-          const isSpoiled = fresh < 30;
           const isRes = reservedSet.has(it.id);
-          if (!isSpoiled && !isRes) {
+          if (!isSpoiled(it, state) && !isRes) {
             available[it.kind] = (available[it.kind] || 0) + 1;
           }
         }
         const rows = state.stock.map(it => {
           const itInfo = ingredient(it.kind);
           const fresh = Number(it.fresh ?? 100);
-          const isSpoiled = fresh < 30;
+          const spoiled = isSpoiled(it, state);
           const isRes = reservedSet.has(it.id);
-          const tag = isSpoiled ? "ƯƠN" : (isRes ? "GIỮ CHỖ" : "SẴN SÀNG");
-          const tagCls = isSpoiled ? "spoiled-badge" : (isRes ? "count" : "fresh-tag");
+          const tag = spoiled ? "ƯƠN" : (isRes ? "GIỮ CHỖ" : "SẴN SÀNG");
+          const tagCls = spoiled ? "spoiled-badge" : (isRes ? "count" : "fresh-tag");
           return `<li><i class="ingredient-dot" style="--item:${itInfo.color}"></i>${esc(itInfo.name)} <small>(${esc(it.id)})</small><strong class="${tagCls}">${tag} (${fresh.toFixed(1)}%)</strong></li>`;
         }).join("");
         stockDetailsHtml = `<div class="section-title">Chi tiết kho (${state.stock.length})</div><ul class="ingredients">${rows || "<li>Kho rỗng</li>"}</ul>`;
@@ -1075,7 +1131,7 @@
         const left = c.patience_ticks_left ?? patMax;
         const low = c.state === "waiting" && (left / patMax) < 0.25;
         const status = c.state === "eating" ? "Đang ăn" : `Chờ ${fmtTime(left)}`;
-        return `<div class="order ${low ? "low-patience" : ""}"><small>Bàn ${esc(tb.id)} · ${status}</small><strong>${esc(dishName(c.dish_id))}</strong></div>`;
+        return `<div class="order ${low ? "low-patience" : ""}"><small>Bàn ${esc(tb.id)} · ${status}</small><strong>${esc(dishName(c.dish_id))}</strong>${low ? "<strong>Khách sắp giận</strong>" : ""}</div>`;
       }).join("");
 
       const stoveRows = (state.stoves || []).map((st) => {
@@ -1137,6 +1193,7 @@
     // ---------- Overlays: Menu, DayIntro, EveningIntro, DayResult, Shop, Summary, Pause ----------
     function renderOverlay(scr, state) {
       const ov = el("overlay");
+      if (scr !== "day_intro" && dayIntroTimer !== null) resetDayIntro();
       if (scr === "exited") {
         ov.hidden = false;
         setHtml("overlay-card", `
@@ -1176,16 +1233,9 @@
 
       if (scr === "day_intro") {
         const dayNum = state.day || 1;
-        const key = `${dayNum}:${state.tick}`;
-        if (dayIntroKey !== `day-${dayNum}`) {
-          dayIntroKey = `day-${dayNum}`;
-          dayIntroSent = false;
-          clearTimeout(dayIntroTimer);
+        if (dayIntroTimer === null) {
           dayIntroTimer = setTimeout(() => {
-            if (activeScreen() === "day_intro" && !dayIntroSent) {
-              dayIntroSent = true;
-              sendPresentation("advance");
-            }
+            if (activeScreen() === "day_intro") advanceDayIntro();
           }, 4000);
         }
         const dishes = Object.entries(state.day_plan?.dishes || {})
@@ -1206,13 +1256,15 @@
       }
 
       if (scr === "evening_intro") {
-        const stock = state.stock || {};
+        const individualStock = Array.isArray(state.stock);
+        const stock = individualStock ? countHold(state.stock) : (state.stock || {});
+        const usableStock = individualStock ? countHold(state.stock.filter(item => !isSpoiled(item, state))) : stock;
         const stockRows = Object.entries(stock).filter(([, n]) => n > 0)
           .map(([k, n]) => `<li><span>${esc(ingredient(k).name)}</span><strong>×${n}</strong></li>`).join("");
         const planned = state.day_plan?.dishes ? Object.keys(state.day_plan.dishes) : Object.keys(DISH_RECIPES);
         const cookable = planned.filter((d) => {
           const rec = DISH_RECIPES[d] || {};
-          return Object.entries(rec).every(([k, need]) => (stock[k] || 0) >= need);
+          return Object.entries(rec).every(([k, need]) => (usableStock[k] || 0) >= need);
         });
         const dishRows = cookable.map((d) => `<li><span>${esc(dishName(d))}</span><strong>Đủ nguyên liệu</strong></li>`).join("");
         ov.hidden = false;
@@ -1318,7 +1370,10 @@
       const buy = btn.dataset.buy;
       if (buy) { sendBuy(buy); return; }
       const act = btn.dataset.act;
-      if (act === "advance") { dayIntroSent = true; clearTimeout(dayIntroTimer); sendPresentation("advance"); }
+      if (act === "advance") {
+        if (activeScreen() === "day_intro") advanceDayIntro();
+        else sendPresentation("advance");
+      }
       else if (act === "menu") { exited = false; sendPresentation("menu"); }
       else if (act === "resume") pulseButton("pause");
       else if (act === "shop-done") pulseButton("shop_done");
@@ -1563,6 +1618,9 @@
       if (!snap) return;
       if (activePhase() === "quan") drawQuanScene(w, h);
       else drawGatherScene(w, h);
+      if (!demoScreen && !offline && activeScreen() === "gather" && !snap.finished) {
+        window.__chonoiBenchFrame?.(now);
+      }
     }
     requestAnimationFrame(frame);
   </script>
