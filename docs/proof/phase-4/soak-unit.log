@@ -1,0 +1,26 @@
+$ PYTHONPATH=tests:. python -m unittest tests/test_p4_soak.py tests/test_p3_day.py -v
+exit_code: 0
+
+test_01_soak_10_days_cli_and_determinism (tests.test_p4_soak.TestPhase4Soak.test_01_soak_10_days_cli_and_determinism)
+Chạy CLI soak 10 Ngày với seed 7 hai lần: đủ 10 kết quả, crashes=0, gameplay lặp y hệt. ... ok
+test_02_soak_10_days_with_v13_freshness_fixture (tests.test_p4_soak.TestPhase4Soak.test_02_soak_10_days_with_v13_freshness_fixture)
+Soak 10 Ngày tương thích hoàn toàn với tuning.freshness (kho cá thể v1.2/v1.3). ... ok
+test_03_day_6_to_10_repeat_plans_and_keep_continuous_ids_and_state (tests.test_p4_soak.TestPhase4Soak.test_03_day_6_to_10_repeat_plans_and_keep_continuous_ids_and_state)
+Ngày 6–10 lặp kế hoạch D1–D5, giữ tiền/nâng cấp/uy tín và cấp ID cá thể liên tục I1..I10. ... ok
+test_04_cli_validation_and_regular_headless_limit (tests.test_p4_soak.TestPhase4Soak.test_04_cli_validation_and_regular_headless_limit)
+soak --days 0 trả mã 2 (không ghi file); headless --mode day --days 6 vẫn trả mã 2. ... ok
+test_01_shop_with_item_list (tests.test_p3_day.TestDayPhase3.test_01_shop_with_item_list)
+Shop nhận danh sách cá thể [dict(id, kind, fresh)], snapshot xuất mảng sắp ID. ... ok
+test_02_id_allocator_sequential_across_days (tests.test_p3_day.TestDayPhase3.test_02_id_allocator_sequential_across_days)
+Day 1 giữ ID fixture (I5, I2); Day 2 cấp ID mới liên tục (I6, I7) không trùng. ... ok
+test_03_phase_transition_events_carry_new_phase_and_day (tests.test_p3_day.TestDayPhase3.test_03_phase_transition_events_carry_new_phase_and_day)
+Khi chuyển pha trong cùng tick: phase_start mang đúng pha mới và day mới. ... ok
+test_04_phase_transition_snapshot_at_phase_tick_zero (tests.test_p3_day.TestDayPhase3.test_04_phase_transition_snapshot_at_phase_tick_zero)
+Chạy headless: tại tick chuyển pha, snapshot pha mới được ghi nhận với phase_tick: 0. ... ok
+test_05_extended_days_repeats_plan_and_default_clamps_to_5 (tests.test_p3_day.TestDayPhase3.test_05_extended_days_repeats_plan_and_default_clamps_to_5)
+Mặc định DaySim giới hạn tối đa 5 Ngày; allow_extended_days=True cho phép 10 Ngày và lặp D1–D5. ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 19.615s
+
+OK

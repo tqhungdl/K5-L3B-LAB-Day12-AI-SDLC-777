@@ -1,0 +1,26 @@
+branch: p4/headless-soak
+base_commit: 71e20f1
+python: 3.11.0 (main, Oct 24 2022, 18:26:48) [MSC v.1933 64 bit (AMD64)]
+command_1: python -m chonoi.soak --seed 7 --days 10 --out docs/proof/phase-4/soak.json
+exit_code_1: 0
+exit_code_2: 0
+days: 10
+days_completed: 10
+crashes: 0
+results_count: 10
+duration_s_run1: 9.5299
+duration_s_run2: 5.2836
+DETERMINISTIC_GAMEPLAY_MATCH: True
+headless_days6_exit_code: 2
+headless_days6_stderr: đầu vào sai: --days phải trong [1, 5]
+results_summary:
+  day=1 earned=312 reputation=4.000000000000001 score=712
+  day=2 earned=600 reputation=4.400000000000001 score=1000
+  day=3 earned=1080 reputation=5 score=1580
+  day=4 earned=1200 reputation=5 score=1700
+  day=5 earned=1344 reputation=5 score=1844
+  day=6 earned=1344 reputation=5 score=1844
+  day=7 earned=1704 reputation=5 score=2204
+  day=8 earned=2184 reputation=5 score=2684
+  day=9 earned=2616 reputation=5 score=3116
+  day=10 earned=3072 reputation=5 score=3572

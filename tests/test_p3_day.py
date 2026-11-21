@@ -136,6 +136,17 @@ class TestDayPhase3(unittest.TestCase):
             # Snapshot đầu tiên của pha quan phải có phase_tick == 0
             self.assertEqual(quan_snaps[0]["phase_tick"], 0)
 
+    def test_05_extended_days_repeats_plan_and_default_clamps_to_5(self):
+        """Mặc định DaySim giới hạn tối đa 5 Ngày; allow_extended_days=True cho phép 10 Ngày và lặp D1–D5."""
+        tuning = load_tuning()
+        sim_default = DaySim(tuning, {}, Streams(7), IdAllocator(), days=10)
+        self.assertEqual(sim_default.days, 5)
+
+        sim_ext = DaySim(tuning, {}, Streams(7), IdAllocator(), days=10, allow_extended_days=True)
+        self.assertEqual(sim_ext.days, 10)
+        for d in range(1, 6):
+            self.assertEqual(sim_ext._plan_for_day(d + 5), sim_ext._plan_for_day(d))
+
 
 if __name__ == "__main__":
     unittest.main()
